@@ -46,11 +46,11 @@ fn test_version() {
 #[derive(Debug, PartialEq)]
 struct Origin {
     pub username: String,
-	pub session_id: u64,
-	pub session_version: u64,
-	pub network_type: String,
-	pub address_type: String,
-	pub unicast_address: String,
+    pub session_id: u64,
+    pub session_version: u64,
+    pub network_type: String,
+    pub address_type: String,
+    pub unicast_address: String,
 }
 
 fn origin(input: Span) -> IResult<Span, Origin> {
@@ -126,65 +126,139 @@ fn test_origin() {
     assert_eq!(expected, actual);
 }
 
+type SessionName = String;
+
+fn session_name(input: Span) -> IResult<Span, SessionName> {
+    let (remainder, span) = preceded(
+        tag("s="),
+        take_till1(|c: char| c.is_whitespace()),
+    )(input)?;
+
+    let session_name = span.fragment.to_owned();
+
+    Ok((remainder, session_name))
+}
+
+#[cfg(test)]
+#[test]
+fn test_session_name() {
+    let input = Span::new("s=-");
+    let expected = "-".to_owned();
+    let actual = session_name(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
+struct Timing {
+    pub start_time: u64,
+    pub stop_time: u64,
+}
+
+fn timing(input: Span) -> IResult<Span, Timing> {
+    let (remainder, span) = preceded(
+        tag("t="),
+        digit1,
+    )(input)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let start_time = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        digit1,
+    )(remainder)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let stop_time = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    let timing = Timing {
+        start_time,
+        stop_time,
+    };
+
+    Ok((remainder, timing))
+}
+
+#[cfg(test)]
+#[test]
+fn test_timing() {
+    let input = Span::new("t=0 0");
+    let expected = Timing {
+        start_time: 0,
+        stop_time: 0,
+    };
+    let actual = timing(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
 #[derive(Debug, PartialEq)]
 struct SessionDescription {
     // v=0
-	// https://tools.ietf.org/html/rfc4566#section-5.1
-	pub version: Version,
+    // https://tools.ietf.org/html/rfc4566#section-5.1
+    pub version: Version,
 
-	// o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
-	// https://tools.ietf.org/html/rfc4566#section-5.2
-	pub origin: Origin,
+    // o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
+    // https://tools.ietf.org/html/rfc4566#section-5.2
+    pub origin: Origin,
 
-	// s=<session name>
-	// https://tools.ietf.org/html/rfc4566#section-5.3
+    // s=<session name>
+    // https://tools.ietf.org/html/rfc4566#section-5.3
+    pub session_name: SessionName,
 
-	// i=<session description>
-	// https://tools.ietf.org/html/rfc4566#section-5.4
+    // i=<session description>
+    // https://tools.ietf.org/html/rfc4566#section-5.4
 
-	// u=<uri>
-	// https://tools.ietf.org/html/rfc4566#section-5.5
+    // u=<uri>
+    // https://tools.ietf.org/html/rfc4566#section-5.5
 
-	// e=<email-address>
-	// https://tools.ietf.org/html/rfc4566#section-5.6
+    // e=<email-address>
+    // https://tools.ietf.org/html/rfc4566#section-5.6
 
-	// p=<phone-number>
-	// https://tools.ietf.org/html/rfc4566#section-5.6
+    // p=<phone-number>
+    // https://tools.ietf.org/html/rfc4566#section-5.6
 
-	// c=<nettype> <addrtype> <connection-address>
-	// https://tools.ietf.org/html/rfc4566#section-5.7
+    // c=<nettype> <addrtype> <connection-address>
+    // https://tools.ietf.org/html/rfc4566#section-5.7
 
-	// b=<bwtype>:<bandwidth>
-	// https://tools.ietf.org/html/rfc4566#section-5.8
+    // b=<bwtype>:<bandwidth>
+    // https://tools.ietf.org/html/rfc4566#section-5.8
 
     // t=<start-time> <stop-time>
-	// https://tools.ietf.org/html/rfc4566#section-5.9
+    // https://tools.ietf.org/html/rfc4566#section-5.9
+    // TODO: implement this as TimeDescription
+    pub timing: Timing,
 
     // r=<repeat interval> <active duration> <offsets from start-time>
-	// https://tools.ietf.org/html/rfc4566#section-5.10
+    // https://tools.ietf.org/html/rfc4566#section-5.10
 
-	// z=<adjustment time> <offset> <adjustment time> <offset> ...
-	// https://tools.ietf.org/html/rfc4566#section-5.11
+    // z=<adjustment time> <offset> <adjustment time> <offset> ...
+    // https://tools.ietf.org/html/rfc4566#section-5.11
 
-	// k=<method>
-	// k=<method>:<encryption key>
-	// https://tools.ietf.org/html/rfc4566#section-5.12
+    // k=<method>
+    // k=<method>:<encryption key>
+    // https://tools.ietf.org/html/rfc4566#section-5.12
 
-	// a=<attribute>
-	// a=<attribute>:<value>
-	// https://tools.ietf.org/html/rfc4566#section-5.13
+    // a=<attribute>
+    // a=<attribute>:<value>
+    // https://tools.ietf.org/html/rfc4566#section-5.13
 
     // m=<media> <port> <proto> <fmt> ...
-	// https://tools.ietf.org/html/rfc4566#section-5.14
+    // https://tools.ietf.org/html/rfc4566#section-5.14
 }
 
 fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     let (remainder, version) = terminated(version, line_ending)(input)?;
-    let (remainder, origin) = origin(remainder)?;
+    let (remainder, origin) = terminated(origin, line_ending)(remainder)?;
+    let (remainder, session_name) = terminated(session_name, line_ending)(remainder)?;
+    let (remainder, timing) = terminated(timing, line_ending)(remainder)?;
 
     let session_description = SessionDescription {
         version,
         origin,
+        session_name,
+        timing,
     };
 
     Ok((remainder, session_description))
@@ -204,7 +278,10 @@ impl SessionDescription {
 #[test]
 fn test_from_str() {
     let sdp = r#"v=0
-o=- 1433832402044130222 3 IN IP4 127.0.0.1"#;
+o=- 1433832402044130222 3 IN IP4 127.0.0.1
+s=-
+t=0 0
+"#;
     let expected = SessionDescription {
         version: 0,
         origin: Origin {
@@ -214,6 +291,11 @@ o=- 1433832402044130222 3 IN IP4 127.0.0.1"#;
             network_type: "IN".to_owned(),
             address_type: "IP4".to_owned(),
             unicast_address: "127.0.0.1".to_owned(),
+        },
+        session_name: "-".to_owned(),
+        timing: Timing {
+            start_time: 0,
+            stop_time: 0,
         },
     };
     let actual = SessionDescription::from_str(sdp);
