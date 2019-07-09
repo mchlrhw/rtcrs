@@ -1,5 +1,6 @@
 use nom::{
     IResult,
+    branch::alt,
     bytes::complete::{
         tag,
         take_till1,
@@ -11,6 +12,7 @@ use nom::{
     character::complete::{
         digit1,
         line_ending,
+        not_line_ending,
     },
     multi::{
         many0,
@@ -18,6 +20,7 @@ use nom::{
     },
     sequence::{
         delimited,
+        pair,
         preceded,
         terminated,
     },
@@ -362,6 +365,80 @@ r=604800 3600 0 90000"#);
 }
 
 #[derive(Debug, PartialEq)]
+enum Attribute {
+    Property(String),
+    Value(String, String),
+}
+
+fn property_attribute(input: Span) -> IResult<Span, Attribute> {
+    let (remainder, span) = preceded(
+        tag("a="),
+        not_line_ending,
+    )(input)?;
+
+    let attribute = Attribute::Property(span.fragment.to_owned());
+
+    Ok((remainder, attribute))
+}
+
+#[test]
+fn test_property_attribute() {
+    let input = Span::new("a=recvonly");
+    let expected = Attribute::Property("recvonly".to_owned());
+    let actual = property_attribute(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+fn value_attribute(input: Span) -> IResult<Span, Attribute> {
+    let (remainder, (property_span, value_span)) = pair(
+        preceded(
+            tag("a="),
+            take_till1(|c| c == ':'),
+        ),
+        preceded(
+            tag(":"),
+            not_line_ending
+        ),
+    )(input)?;
+
+    let attribute = Attribute::Value(
+        property_span.fragment.to_owned(),
+        value_span.fragment.to_owned(),
+    );
+
+    Ok((remainder, attribute))
+}
+
+#[test]
+fn test_value_attribute() {
+    let input = Span::new("a=msid-semantic: WMS stream");
+    let expected = Attribute::Value(
+        "msid-semantic".to_owned(),
+        " WMS stream".to_owned(),
+    );
+    let actual = value_attribute(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+fn attribute(input: Span) -> IResult<Span, Attribute> {
+    alt((
+        value_attribute,
+        property_attribute,
+    ))(input)
+}
+
+#[test]
+fn test_attribute() {
+    let input = Span::new("a=msid-semantic: WMS stream");
+    let expected = Attribute::Value(
+        "msid-semantic".to_owned(),
+        " WMS stream".to_owned(),
+    );
+    let actual = attribute(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
 struct SessionDescription {
     // v=0
     // https://tools.ietf.org/html/rfc4566#section-5.1
@@ -410,6 +487,7 @@ struct SessionDescription {
     // a=<attribute>
     // a=<attribute>:<value>
     // https://tools.ietf.org/html/rfc4566#section-5.13
+    pub attributes: Vec<Attribute>,
 
     // m=<media> <port> <proto> <fmt> ...
     // https://tools.ietf.org/html/rfc4566#section-5.14
@@ -421,6 +499,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     let (remainder, session_name) = terminated(session_name, line_ending)(remainder)?;
     let (remainder, connection) = opt(terminated(connection, line_ending))(remainder)?;
     let (remainder, time_description) = terminated(time_description, line_ending)(remainder)?;
+    let (remainder, attributes) = many0(terminated(attribute, line_ending))(remainder)?;
 
     let session_description = SessionDescription {
         version,
@@ -428,6 +507,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
         session_name,
         connection,
         time_description,
+        attributes,
     };
 
     Ok((remainder, session_description))
@@ -450,6 +530,8 @@ o=- 1433832402044130222 3 IN IP4 127.0.0.1
 s=-
 c=IN IP4 127.0.0.1
 t=0 0
+a=group:BUNDLE 0 1
+a=msid-semantic: WMS stream
 "#;
     let expected = SessionDescription {
         version: 0,
@@ -474,8 +556,11 @@ t=0 0
             },
             repeat_times: vec![],
         },
+        attributes: vec![
+            Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
+            Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned()),
+        ],
     };
     let actual = SessionDescription::from_str(sdp);
     assert_eq!(expected, actual);
 }
-
