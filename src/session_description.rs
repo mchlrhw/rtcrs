@@ -4,7 +4,10 @@ use nom::{
         tag,
         take_till1,
     },
-    combinator::all_consuming,
+    combinator::{
+        all_consuming,
+        opt,
+    },
     character::complete::{
         digit1,
         line_ending,
@@ -146,6 +149,56 @@ fn test_session_name() {
     let input = Span::new("s=-");
     let expected = "-".to_owned();
     let actual = session_name(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
+struct Connection {
+    pub network_type: String,
+    pub address_type: String,
+    pub connection_address: String,
+}
+
+fn connection(input: Span) -> IResult<Span, Connection> {
+    let (remainder, span) = preceded(
+        tag("c="),
+        take_till1(|c: char| c.is_whitespace()),
+    )(input)?;
+
+    let network_type = span.fragment.to_owned();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        take_till1(|c: char| c.is_whitespace()),
+    )(remainder)?;
+
+    let address_type = span.fragment.to_owned();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        take_till1(|c: char| c.is_whitespace()),
+    )(remainder)?;
+
+    let connection_address = span.fragment.to_owned();
+
+    let connection = Connection {
+        network_type,
+        address_type,
+        connection_address,
+    };
+
+    Ok((remainder, connection))
+}
+
+#[test]
+fn test_connection() {
+    let input = Span::new("c=IN IP4 127.0.0.1");
+    let expected = Connection {
+        network_type: "IN".to_owned(),
+        address_type: "IP4".to_owned(),
+        connection_address: "127.0.0.1".to_owned(),
+    };
+    let actual = connection(input).unwrap().1;
     assert_eq!(expected, actual);
 }
 
@@ -336,6 +389,7 @@ struct SessionDescription {
 
     // c=<nettype> <addrtype> <connection-address>
     // https://tools.ietf.org/html/rfc4566#section-5.7
+    pub connection: Option<Connection>,
 
     // b=<bwtype>:<bandwidth>
     // https://tools.ietf.org/html/rfc4566#section-5.8
@@ -365,12 +419,14 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     let (remainder, version) = terminated(version, line_ending)(input)?;
     let (remainder, origin) = terminated(origin, line_ending)(remainder)?;
     let (remainder, session_name) = terminated(session_name, line_ending)(remainder)?;
+    let (remainder, connection) = opt(terminated(connection, line_ending))(remainder)?;
     let (remainder, time_description) = terminated(time_description, line_ending)(remainder)?;
 
     let session_description = SessionDescription {
         version,
         origin,
         session_name,
+        connection,
         time_description,
     };
 
@@ -392,6 +448,7 @@ fn test_from_str() {
     let sdp = r#"v=0
 o=- 1433832402044130222 3 IN IP4 127.0.0.1
 s=-
+c=IN IP4 127.0.0.1
 t=0 0
 "#;
     let expected = SessionDescription {
@@ -405,6 +462,11 @@ t=0 0
             unicast_address: "127.0.0.1".to_owned(),
         },
         session_name: "-".to_owned(),
+        connection: Some(Connection {
+            network_type: "IN".to_owned(),
+            address_type: "IP4".to_owned(),
+            connection_address: "127.0.0.1".to_owned(),
+        }),
         time_description: TimeDescription {
             timing: Timing {
                 start_time: 0,
