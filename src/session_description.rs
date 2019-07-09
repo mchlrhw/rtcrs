@@ -9,6 +9,10 @@ use nom::{
         digit1,
         line_ending,
     },
+    multi::{
+        many0,
+        many1,
+    },
     sequence::{
         delimited,
         preceded,
@@ -190,6 +194,121 @@ fn test_timing() {
 }
 
 #[derive(Debug, PartialEq)]
+struct Repeat {
+    pub interval: u64,
+    pub active_duration: u64,
+    pub offsets: Vec<u64>,
+}
+
+fn offset(input: Span) -> IResult<Span, u64> {
+    let (remainder, span) = preceded(
+        tag(" "),
+        digit1,
+    )(input)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let offset = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    Ok((remainder, offset))
+}
+
+fn repeat(input: Span) -> IResult<Span, Repeat> {
+    let (remainder, span) = preceded(
+        tag("r="),
+        digit1,
+    )(input)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let interval = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        digit1,
+    )(remainder)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let active_duration = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    let (remainder, offsets) = many1(offset)(remainder)?;
+
+    let repeat = Repeat {
+        interval,
+        active_duration,
+        offsets,
+    };
+
+    Ok((remainder, repeat))
+}
+
+#[test]
+fn test_repeat() {
+    let input = Span::new("r=604800 3600 0 90000");
+    let expected = Repeat {
+        interval: 604800,
+        active_duration: 3600,
+        offsets: vec![0, 90000],
+    };
+    let actual = repeat(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
+struct TimeDescription {
+    pub timing: Timing,
+    pub repeat_times: Vec<Repeat>,
+}
+
+fn time_description(input: Span) -> IResult<Span, TimeDescription> {
+    let (remainder, timing) = timing(input)?;
+    let (remainder, repeat_times) = many0(preceded(line_ending, repeat))(remainder)?;
+
+    let time_description = TimeDescription {
+        timing,
+        repeat_times,
+    };
+
+    Ok((remainder, time_description))
+}
+
+#[test]
+fn test_time_description() {
+    let input = Span::new(r#"t=3034423619 3042462419"#);
+    let expected = TimeDescription {
+        timing: Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        },
+        repeat_times: vec![],
+    };
+    let actual = time_description(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[test]
+fn test_time_description_with_repeat_times() {
+    let input = Span::new(r#"t=3034423619 3042462419
+r=604800 3600 0 90000"#);
+    let expected = TimeDescription {
+        timing: Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        },
+        repeat_times: vec![
+            Repeat {
+                interval: 604800,
+                active_duration: 3600,
+                offsets: vec![0, 90000],
+            },
+        ],
+    };
+    let actual = time_description(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
 struct SessionDescription {
     // v=0
     // https://tools.ietf.org/html/rfc4566#section-5.1
@@ -223,11 +342,9 @@ struct SessionDescription {
 
     // t=<start-time> <stop-time>
     // https://tools.ietf.org/html/rfc4566#section-5.9
-    // TODO: implement this as TimeDescription
-    pub timing: Timing,
-
     // r=<repeat interval> <active duration> <offsets from start-time>
     // https://tools.ietf.org/html/rfc4566#section-5.10
+    pub time_description: TimeDescription,
 
     // z=<adjustment time> <offset> <adjustment time> <offset> ...
     // https://tools.ietf.org/html/rfc4566#section-5.11
@@ -248,13 +365,13 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     let (remainder, version) = terminated(version, line_ending)(input)?;
     let (remainder, origin) = terminated(origin, line_ending)(remainder)?;
     let (remainder, session_name) = terminated(session_name, line_ending)(remainder)?;
-    let (remainder, timing) = terminated(timing, line_ending)(remainder)?;
+    let (remainder, time_description) = terminated(time_description, line_ending)(remainder)?;
 
     let session_description = SessionDescription {
         version,
         origin,
         session_name,
-        timing,
+        time_description,
     };
 
     Ok((remainder, session_description))
@@ -270,7 +387,6 @@ impl SessionDescription {
     }
 }
 
-#[cfg(test)]
 #[test]
 fn test_from_str() {
     let sdp = r#"v=0
@@ -289,9 +405,12 @@ t=0 0
             unicast_address: "127.0.0.1".to_owned(),
         },
         session_name: "-".to_owned(),
-        timing: Timing {
-            start_time: 0,
-            stop_time: 0,
+        time_description: TimeDescription {
+            timing: Timing {
+                start_time: 0,
+                stop_time: 0,
+            },
+            repeat_times: vec![],
         },
     };
     let actual = SessionDescription::from_str(sdp);
