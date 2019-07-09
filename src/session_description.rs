@@ -34,7 +34,6 @@ fn version(input: Span) -> IResult<Span, Version> {
     Ok((remainder, version))
 }
 
-#[cfg(test)]
 #[test]
 fn test_version() {
     let input = Span::new("v=0");
@@ -110,7 +109,6 @@ fn origin(input: Span) -> IResult<Span, Origin> {
     Ok((remainder, origin))
 }
 
-#[cfg(test)]
 #[test]
 fn test_origin() {
     let input = Span::new("o=- 1433832402044130222 3 IN IP4 127.0.0.1");
@@ -139,7 +137,6 @@ fn session_name(input: Span) -> IResult<Span, SessionName> {
     Ok((remainder, session_name))
 }
 
-#[cfg(test)]
 #[test]
 fn test_session_name() {
     let input = Span::new("s=-");
@@ -181,7 +178,6 @@ fn timing(input: Span) -> IResult<Span, Timing> {
     Ok((remainder, timing))
 }
 
-#[cfg(test)]
 #[test]
 fn test_timing() {
     let input = Span::new("t=0 0");
