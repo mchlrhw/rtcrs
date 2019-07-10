@@ -393,7 +393,7 @@ fn value_attribute(input: Span) -> IResult<Span, Attribute> {
     let (remainder, (property_span, value_span)) = pair(
         preceded(
             tag("a="),
-            take_till1(|c| c == ':'),
+            take_till1(|c: char| c == ':' || c.is_whitespace()),
         ),
         preceded(
             tag(":"),
@@ -435,6 +435,138 @@ fn test_attribute() {
         " WMS stream".to_owned(),
     );
     let actual = attribute(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
+enum MediaType {
+    Application,
+    Audio,
+    Message,
+    Text,
+    Video,
+}
+
+#[derive(Debug, PartialEq)]
+struct Media {
+    pub typ: MediaType,
+    pub port: u64,
+    pub protocol: String,
+    pub format: String,
+}
+
+fn media(input: Span) -> IResult<Span, Media> {
+    let (remainder, span) = preceded(
+        tag("m="),
+        alt((
+            tag("application"),
+            tag("audio"),
+            tag("message"),
+            tag("text"),
+            tag("video"),
+        )),
+    )(input)?;
+
+    let typ = match span.fragment {
+        "application" => MediaType::Application,
+        "audio" => MediaType::Audio,
+        "message" => MediaType::Message,
+        "text" => MediaType::Text,
+        "video" => MediaType::Video,
+        _ => unreachable!(),
+    };
+
+    // TODO: support <port>/<number of ports> format
+    let (remainder, span) = preceded(
+        tag(" "),
+        digit1,
+    )(remainder)?;
+
+    // SAFE: since we've parsed this as digit1, so we don't need
+    //       to guard against parse errors in from_str_radix
+    let port = u64::from_str_radix(span.fragment, 10).unwrap();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        take_till1(|c| c == ' '),
+    )(remainder)?;
+
+    // TODO: we might want to parse this into an enum
+    let protocol = span.fragment.to_owned();
+
+    let (remainder, span) = preceded(
+        tag(" "),
+        not_line_ending,
+    )(remainder)?;
+
+    // TODO: parse this based on the protocol field
+    let format = span.fragment.to_owned();
+
+    let media = Media {
+        typ,
+        port,
+        protocol,
+        format,
+    };
+
+    Ok((remainder, media))
+}
+
+#[test]
+fn test_media() {
+    let input = Span::new("m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126");
+    let expected = Media {
+        typ: MediaType::Audio,
+        port: 51596,
+        protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
+        format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+    };
+    let actual = media(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[derive(Debug, PartialEq)]
+struct MediaDescription {
+    pub media: Media,
+    pub connection: Option<Connection>,
+    pub attributes: Vec<Attribute>,
+}
+
+fn media_description(input: Span) -> IResult<Span, MediaDescription> {
+    let (remainder, media) = media(input)?;
+    // TODO: make this non-optional if no connection at session level
+    let (remainder, connection) = opt(preceded(line_ending, connection))(remainder)?;
+    let (remainder, attributes) = many0(preceded(line_ending, attribute))(remainder)?;
+
+    let media_description = MediaDescription {
+        media,
+        connection,
+        attributes,
+    };
+
+    Ok((remainder, media_description))
+}
+
+#[test]
+fn test_media_description() {
+    let input = Span::new(r#"m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126
+a=rtcp:9 IN IP4 0.0.0.0"#);
+    let expected = MediaDescription {
+        media: Media {
+            typ: MediaType::Audio,
+            port: 51596,
+            protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
+            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+        },
+        connection: None,
+        attributes: vec![
+            Attribute::Value(
+                "rtcp".to_owned(),
+                "9 IN IP4 0.0.0.0".to_owned(),
+            ),
+        ],
+    };
+    let actual = media_description(input).unwrap().1;
     assert_eq!(expected, actual);
 }
 
@@ -491,6 +623,7 @@ struct SessionDescription {
 
     // m=<media> <port> <proto> <fmt> ...
     // https://tools.ietf.org/html/rfc4566#section-5.14
+    pub media_descriptions: Vec<MediaDescription>,
 }
 
 fn session_description(input: Span) -> IResult<Span, SessionDescription> {
@@ -500,6 +633,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     let (remainder, connection) = opt(terminated(connection, line_ending))(remainder)?;
     let (remainder, time_description) = terminated(time_description, line_ending)(remainder)?;
     let (remainder, attributes) = many0(terminated(attribute, line_ending))(remainder)?;
+    let (remainder, media_descriptions) = many0(terminated(media_description, line_ending))(remainder)?;
 
     let session_description = SessionDescription {
         version,
@@ -508,6 +642,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
         connection,
         time_description,
         attributes,
+        media_descriptions,
     };
 
     Ok((remainder, session_description))
@@ -530,8 +665,12 @@ o=- 1433832402044130222 3 IN IP4 127.0.0.1
 s=-
 c=IN IP4 127.0.0.1
 t=0 0
+a=recvonly
 a=group:BUNDLE 0 1
 a=msid-semantic: WMS stream
+m=audio 49170 RTP/AVP 0
+m=video 51372 RTP/AVP 99
+a=rtpmap:99 h263-1998/90000
 "#;
     let expected = SessionDescription {
         version: 0,
@@ -557,8 +696,36 @@ a=msid-semantic: WMS stream
             repeat_times: vec![],
         },
         attributes: vec![
+            Attribute::Property("recvonly".to_owned()),
             Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
             Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned()),
+        ],
+        media_descriptions: vec![
+            MediaDescription {
+                media: Media {
+                    typ: MediaType::Audio,
+                    port: 49170,
+                    protocol: "RTP/AVP".to_owned(),
+                    format: "0".to_owned(),
+                },
+                connection: None,
+                attributes: vec![],
+            },
+            MediaDescription {
+                media: Media {
+                    typ: MediaType::Video,
+                    port: 51372,
+                    protocol: "RTP/AVP".to_owned(),
+                    format: "99".to_owned(),
+                },
+                connection: None,
+                attributes: vec![
+                    Attribute::Value(
+                        "rtpmap".to_owned(),
+                        "99 h263-1998/90000".to_owned(),
+                    ),
+                ],
+            },
         ],
     };
     let actual = SessionDescription::from_str(sdp);
