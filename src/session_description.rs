@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nom::{
     IResult,
     branch::alt,
@@ -29,25 +31,41 @@ use nom_locate::LocatedSpan;
 
 type Span<'a> = LocatedSpan<&'a str>;
 
-type Version = u8;
+#[derive(Debug, PartialEq)]
+struct Version(u8);
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "v={}\r\n", self.0)
+    }
+}
+
+#[test]
+fn test_serialize_version() {
+    let version = Version(0);
+    let expected = "v=0\r\n";
+    let actual = version.to_string();
+    assert_eq!(expected, actual);
+}
 
 fn version(input: Span) -> IResult<Span, Version> {
-    let (remainder, span) = preceded(
+    let (remainder, span) = delimited(
         tag("v="),
         digit1,
+        line_ending,
     )(input)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let version = u8::from_str_radix(span.fragment, 10).unwrap();
+    let version = Version(u8::from_str_radix(span.fragment, 10).unwrap());
 
     Ok((remainder, version))
 }
 
 #[test]
 fn test_version() {
-    let input = Span::new("v=0");
-    let expected = 0;
+    let input = Span::new("v=0\r\n");
+    let expected = Version(0);
     let actual = version(input).unwrap().1;
     assert_eq!(expected, actual);
 }
@@ -63,47 +81,50 @@ struct Origin {
 }
 
 fn origin(input: Span) -> IResult<Span, Origin> {
-    let (remainder, span) = delimited(
+    let (remainder, span) = preceded(
         tag("o="),
         take_till1(|c| c == ' '),
-        tag(" "),
     )(input)?;
 
     let username = span.fragment.to_owned();
 
-    let (remainder, span) = terminated(
+    let (remainder, span) = preceded(
+        tag(" "),
         digit1,
-        tag(" ")
     )(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
     let session_id = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, span) = terminated(
+    let (remainder, span) = preceded(
+        tag(" "),
         digit1,
-        tag(" ")
     )(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
     let session_version = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, span) = terminated(
+    let (remainder, span) = preceded(
+        tag(" "),
         take_till1(|c| c == ' '),
-        tag(" ")
     )(remainder)?;
 
     let network_type = span.fragment.to_owned();
 
-    let (remainder, span) = terminated(
+    let (remainder, span) = preceded(
+        tag(" "),
         take_till1(|c| c == ' '),
-        tag(" ")
     )(remainder)?;
 
     let address_type = span.fragment.to_owned();
 
-    let (remainder, span) = take_till1(|c: char| c.is_whitespace())(remainder)?;
+    let (remainder, span) = delimited(
+        tag(" "),
+        not_line_ending,
+        line_ending,
+    )(remainder)?;
 
     let unicast_address = span.fragment.to_owned();
 
@@ -121,7 +142,7 @@ fn origin(input: Span) -> IResult<Span, Origin> {
 
 #[test]
 fn test_origin() {
-    let input = Span::new("o=- 1433832402044130222 3 IN IP4 127.0.0.1");
+    let input = Span::new("o=- 1433832402044130222 3 IN IP4 127.0.0.1\r\n");
     let expected = Origin {
         username: "-".to_owned(),
         session_id: 1433832402044130222,
@@ -137,9 +158,10 @@ fn test_origin() {
 type SessionName = String;
 
 fn session_name(input: Span) -> IResult<Span, SessionName> {
-    let (remainder, span) = preceded(
+    let (remainder, span) = delimited(
         tag("s="),
-        take_till1(|c: char| c.is_whitespace()),
+        not_line_ending,
+        line_ending,
     )(input)?;
 
     let session_name = span.fragment.to_owned();
@@ -149,7 +171,7 @@ fn session_name(input: Span) -> IResult<Span, SessionName> {
 
 #[test]
 fn test_session_name() {
-    let input = Span::new("s=-");
+    let input = Span::new("s=-\r\n");
     let expected = "-".to_owned();
     let actual = session_name(input).unwrap().1;
     assert_eq!(expected, actual);
@@ -165,21 +187,22 @@ struct Connection {
 fn connection(input: Span) -> IResult<Span, Connection> {
     let (remainder, span) = preceded(
         tag("c="),
-        take_till1(|c: char| c.is_whitespace()),
+        take_till1(|c| c == ' '),
     )(input)?;
 
     let network_type = span.fragment.to_owned();
 
     let (remainder, span) = preceded(
         tag(" "),
-        take_till1(|c: char| c.is_whitespace()),
+        take_till1(|c| c == ' '),
     )(remainder)?;
 
     let address_type = span.fragment.to_owned();
 
-    let (remainder, span) = preceded(
+    let (remainder, span) = delimited(
         tag(" "),
-        take_till1(|c: char| c.is_whitespace()),
+        not_line_ending,
+        line_ending,
     )(remainder)?;
 
     let connection_address = span.fragment.to_owned();
@@ -195,7 +218,7 @@ fn connection(input: Span) -> IResult<Span, Connection> {
 
 #[test]
 fn test_connection() {
-    let input = Span::new("c=IN IP4 127.0.0.1");
+    let input = Span::new("c=IN IP4 127.0.0.1\r\n");
     let expected = Connection {
         network_type: "IN".to_owned(),
         address_type: "IP4".to_owned(),
@@ -221,9 +244,10 @@ fn timing(input: Span) -> IResult<Span, Timing> {
     //       to guard against parse errors in from_str_radix
     let start_time = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, span) = preceded(
+    let (remainder, span) = delimited(
         tag(" "),
         digit1,
+        line_ending,
     )(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
@@ -240,7 +264,7 @@ fn timing(input: Span) -> IResult<Span, Timing> {
 
 #[test]
 fn test_timing() {
-    let input = Span::new("t=0 0");
+    let input = Span::new("t=0 0\r\n");
     let expected = Timing {
         start_time: 0,
         stop_time: 0,
@@ -288,7 +312,10 @@ fn repeat(input: Span) -> IResult<Span, Repeat> {
     //       to guard against parse errors in from_str_radix
     let active_duration = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, offsets) = many1(offset)(remainder)?;
+    let (remainder, offsets) = terminated(
+        many1(offset),
+        line_ending,
+    )(remainder)?;
 
     let repeat = Repeat {
         interval,
@@ -301,7 +328,7 @@ fn repeat(input: Span) -> IResult<Span, Repeat> {
 
 #[test]
 fn test_repeat() {
-    let input = Span::new("r=604800 3600 0 90000");
+    let input = Span::new("r=604800 3600 0 90000\r\n");
     let expected = Repeat {
         interval: 604800,
         active_duration: 3600,
@@ -319,7 +346,7 @@ struct TimeDescription {
 
 fn time_description(input: Span) -> IResult<Span, TimeDescription> {
     let (remainder, timing) = timing(input)?;
-    let (remainder, repeat_times) = many0(preceded(line_ending, repeat))(remainder)?;
+    let (remainder, repeat_times) = many0(repeat)(remainder)?;
 
     let time_description = TimeDescription {
         timing,
@@ -331,7 +358,7 @@ fn time_description(input: Span) -> IResult<Span, TimeDescription> {
 
 #[test]
 fn test_time_description() {
-    let input = Span::new(r#"t=3034423619 3042462419"#);
+    let input = Span::new("t=3034423619 3042462419\r\n");
     let expected = TimeDescription {
         timing: Timing {
             start_time: 3034423619,
@@ -345,8 +372,7 @@ fn test_time_description() {
 
 #[test]
 fn test_time_description_with_repeat_times() {
-    let input = Span::new(r#"t=3034423619 3042462419
-r=604800 3600 0 90000"#);
+    let input = Span::new("t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n");
     let expected = TimeDescription {
         timing: Timing {
             start_time: 3034423619,
@@ -371,10 +397,7 @@ enum Attribute {
 }
 
 fn property_attribute(input: Span) -> IResult<Span, Attribute> {
-    let (remainder, span) = preceded(
-        tag("a="),
-        not_line_ending,
-    )(input)?;
+    let (remainder, span) = not_line_ending(input)?;
 
     let attribute = Attribute::Property(span.fragment.to_owned());
 
@@ -383,7 +406,7 @@ fn property_attribute(input: Span) -> IResult<Span, Attribute> {
 
 #[test]
 fn test_property_attribute() {
-    let input = Span::new("a=recvonly");
+    let input = Span::new("recvonly");
     let expected = Attribute::Property("recvonly".to_owned());
     let actual = property_attribute(input).unwrap().1;
     assert_eq!(expected, actual);
@@ -391,13 +414,10 @@ fn test_property_attribute() {
 
 fn value_attribute(input: Span) -> IResult<Span, Attribute> {
     let (remainder, (property_span, value_span)) = pair(
-        preceded(
-            tag("a="),
-            take_till1(|c: char| c == ':' || c.is_whitespace()),
-        ),
+        take_till1(|c: char| c == ':' || c.is_whitespace()),
         preceded(
             tag(":"),
-            not_line_ending
+            not_line_ending,
         ),
     )(input)?;
 
@@ -411,7 +431,7 @@ fn value_attribute(input: Span) -> IResult<Span, Attribute> {
 
 #[test]
 fn test_value_attribute() {
-    let input = Span::new("a=msid-semantic: WMS stream");
+    let input = Span::new("msid-semantic: WMS stream");
     let expected = Attribute::Value(
         "msid-semantic".to_owned(),
         " WMS stream".to_owned(),
@@ -421,15 +441,19 @@ fn test_value_attribute() {
 }
 
 fn attribute(input: Span) -> IResult<Span, Attribute> {
-    alt((
-        value_attribute,
-        property_attribute,
-    ))(input)
+    delimited(
+        tag("a="),
+        alt((
+            value_attribute,
+            property_attribute,
+        )),
+        line_ending,
+    )(input)
 }
 
 #[test]
 fn test_attribute() {
-    let input = Span::new("a=msid-semantic: WMS stream");
+    let input = Span::new("a=msid-semantic: WMS stream\r\n");
     let expected = Attribute::Value(
         "msid-semantic".to_owned(),
         " WMS stream".to_owned(),
@@ -494,9 +518,10 @@ fn media(input: Span) -> IResult<Span, Media> {
     // TODO: we might want to parse this into an enum
     let protocol = span.fragment.to_owned();
 
-    let (remainder, span) = preceded(
+    let (remainder, span) = delimited(
         tag(" "),
         not_line_ending,
+        line_ending,
     )(remainder)?;
 
     // TODO: parse this based on the protocol field
@@ -514,7 +539,7 @@ fn media(input: Span) -> IResult<Span, Media> {
 
 #[test]
 fn test_media() {
-    let input = Span::new("m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126");
+    let input = Span::new("m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126\r\n");
     let expected = Media {
         typ: MediaType::Audio,
         port: 51596,
@@ -535,8 +560,8 @@ struct MediaDescription {
 fn media_description(input: Span) -> IResult<Span, MediaDescription> {
     let (remainder, media) = media(input)?;
     // TODO: make this non-optional if no connection at session level
-    let (remainder, connection) = opt(preceded(line_ending, connection))(remainder)?;
-    let (remainder, attributes) = many0(preceded(line_ending, attribute))(remainder)?;
+    let (remainder, connection) = opt(connection)(remainder)?;
+    let (remainder, attributes) = many0(attribute)(remainder)?;
 
     let media_description = MediaDescription {
         media,
@@ -549,8 +574,7 @@ fn media_description(input: Span) -> IResult<Span, MediaDescription> {
 
 #[test]
 fn test_media_description() {
-    let input = Span::new(r#"m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126
-a=rtcp:9 IN IP4 0.0.0.0"#);
+    let input = Span::new("m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126\r\na=rtcp:9 IN IP4 0.0.0.0\r\n");
     let expected = MediaDescription {
         media: Media {
             typ: MediaType::Audio,
@@ -627,13 +651,13 @@ struct SessionDescription {
 }
 
 fn session_description(input: Span) -> IResult<Span, SessionDescription> {
-    let (remainder, version) = terminated(version, line_ending)(input)?;
-    let (remainder, origin) = terminated(origin, line_ending)(remainder)?;
-    let (remainder, session_name) = terminated(session_name, line_ending)(remainder)?;
-    let (remainder, connection) = opt(terminated(connection, line_ending))(remainder)?;
-    let (remainder, time_description) = terminated(time_description, line_ending)(remainder)?;
-    let (remainder, attributes) = many0(terminated(attribute, line_ending))(remainder)?;
-    let (remainder, media_descriptions) = many0(terminated(media_description, line_ending))(remainder)?;
+    let (remainder, version) = version(input)?;
+    let (remainder, origin) = origin(remainder)?;
+    let (remainder, session_name) = session_name(remainder)?;
+    let (remainder, connection) = opt(connection)(remainder)?;
+    let (remainder, time_description) = time_description(remainder)?;
+    let (remainder, attributes) = many0(attribute)(remainder)?;
+    let (remainder, media_descriptions) = many0(media_description)(remainder)?;
 
     let session_description = SessionDescription {
         version,
@@ -673,7 +697,7 @@ m=video 51372 RTP/AVP 99
 a=rtpmap:99 h263-1998/90000
 "#;
     let expected = SessionDescription {
-        version: 0,
+        version: Version(0),
         origin: Origin {
             username: "-".to_owned(),
             session_id: 1433832402044130222,
