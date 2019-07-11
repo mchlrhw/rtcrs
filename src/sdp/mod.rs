@@ -9,6 +9,7 @@ use nom::{
     },
     combinator::{
         all_consuming,
+        map,
         opt,
     },
     character::complete::{
@@ -25,6 +26,7 @@ use nom::{
         pair,
         preceded,
         terminated,
+        tuple,
     },
 };
 use nom_locate::LocatedSpan;
@@ -344,16 +346,26 @@ struct TimeDescription {
     pub repeat_times: Vec<Repeat>,
 }
 
+impl TimeDescription {
+    fn from_tuple(args: (
+        Timing,
+        Vec<Repeat>,
+    )) -> Self {
+        Self {
+            timing: args.0,
+            repeat_times: args.1,
+        }
+    }
+}
+
 fn time_description(input: Span) -> IResult<Span, TimeDescription> {
-    let (remainder, timing) = timing(input)?;
-    let (remainder, repeat_times) = many0(repeat)(remainder)?;
-
-    let time_description = TimeDescription {
-        timing,
-        repeat_times,
-    };
-
-    Ok((remainder, time_description))
+    map(
+        tuple((
+            timing,
+            many0(repeat),
+        )),
+        TimeDescription::from_tuple,
+    )(input)
 }
 
 #[test]
@@ -557,19 +569,30 @@ struct MediaDescription {
     pub attributes: Vec<Attribute>,
 }
 
+impl MediaDescription {
+    fn from_tuple(args: (
+        Media,
+        Option<Connection>,
+        Vec<Attribute>,
+    )) -> Self {
+        Self {
+            media: args.0,
+            connection: args.1,
+            attributes: args.2,
+        }
+    }
+}
+
 fn media_description(input: Span) -> IResult<Span, MediaDescription> {
-    let (remainder, media) = media(input)?;
-    // TODO: make this non-optional if no connection at session level
-    let (remainder, connection) = opt(connection)(remainder)?;
-    let (remainder, attributes) = many0(attribute)(remainder)?;
-
-    let media_description = MediaDescription {
-        media,
-        connection,
-        attributes,
-    };
-
-    Ok((remainder, media_description))
+    map(
+        tuple((
+            media,
+            // TODO: make this non-optional if no connection at session level
+            opt(connection),
+            many0(attribute),
+        )),
+        MediaDescription::from_tuple,
+    )(input)
 }
 
 #[test]
@@ -650,26 +673,41 @@ struct SessionDescription {
     pub media_descriptions: Vec<MediaDescription>,
 }
 
+impl SessionDescription {
+    fn from_tuple(args: (
+        Version,
+        Origin,
+        SessionName,
+        Option<Connection>,
+        TimeDescription,
+        Vec<Attribute>,
+        Vec<MediaDescription>,
+    )) -> Self {
+        Self {
+            version: args.0,
+            origin: args.1,
+            session_name: args.2,
+            connection: args.3,
+            time_description: args.4,
+            attributes: args.5,
+            media_descriptions: args.6,
+        }
+    }
+}
+
 fn session_description(input: Span) -> IResult<Span, SessionDescription> {
-    let (remainder, version) = version(input)?;
-    let (remainder, origin) = origin(remainder)?;
-    let (remainder, session_name) = session_name(remainder)?;
-    let (remainder, connection) = opt(connection)(remainder)?;
-    let (remainder, time_description) = time_description(remainder)?;
-    let (remainder, attributes) = many0(attribute)(remainder)?;
-    let (remainder, media_descriptions) = many0(media_description)(remainder)?;
-
-    let session_description = SessionDescription {
-        version,
-        origin,
-        session_name,
-        connection,
-        time_description,
-        attributes,
-        media_descriptions,
-    };
-
-    Ok((remainder, session_description))
+    map(
+        tuple((
+            version,
+            origin,
+            session_name,
+            opt(connection),
+            time_description,
+            many0(attribute),
+            many0(media_description),
+        )),
+        SessionDescription::from_tuple,
+    )(input)
 }
 
 impl SessionDescription {
