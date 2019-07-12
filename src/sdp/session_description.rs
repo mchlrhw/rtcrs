@@ -18,57 +18,12 @@ use crate::sdp::{
 
 #[derive(Debug, PartialEq)]
 struct SessionDescription {
-    // v=0
-    // https://tools.ietf.org/html/rfc4566#section-5.1
     pub version: Version,
-
-    // o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
-    // https://tools.ietf.org/html/rfc4566#section-5.2
     pub origin: Origin,
-
-    // s=<session name>
-    // https://tools.ietf.org/html/rfc4566#section-5.3
     pub session_name: SessionName,
-
-    // i=<session description>
-    // https://tools.ietf.org/html/rfc4566#section-5.4
-
-    // u=<uri>
-    // https://tools.ietf.org/html/rfc4566#section-5.5
-
-    // e=<email-address>
-    // https://tools.ietf.org/html/rfc4566#section-5.6
-
-    // p=<phone-number>
-    // https://tools.ietf.org/html/rfc4566#section-5.6
-
-    // c=<nettype> <addrtype> <connection-address>
-    // https://tools.ietf.org/html/rfc4566#section-5.7
     pub connection: Option<Connection>,
-
-    // b=<bwtype>:<bandwidth>
-    // https://tools.ietf.org/html/rfc4566#section-5.8
-
-    // t=<start-time> <stop-time>
-    // https://tools.ietf.org/html/rfc4566#section-5.9
-    // r=<repeat interval> <active duration> <offsets from start-time>
-    // https://tools.ietf.org/html/rfc4566#section-5.10
     pub time_description: TimeDescription,
-
-    // z=<adjustment time> <offset> <adjustment time> <offset> ...
-    // https://tools.ietf.org/html/rfc4566#section-5.11
-
-    // k=<method>
-    // k=<method>:<encryption key>
-    // https://tools.ietf.org/html/rfc4566#section-5.12
-
-    // a=<attribute>
-    // a=<attribute>:<value>
-    // https://tools.ietf.org/html/rfc4566#section-5.13
     pub attributes: Vec<Attribute>,
-
-    // m=<media> <port> <proto> <fmt> ...
-    // https://tools.ietf.org/html/rfc4566#section-5.14
     pub media_descriptions: Vec<MediaDescription>,
 }
 
@@ -94,6 +49,21 @@ impl SessionDescription {
     }
 }
 
+// v=  (protocol version)
+// o=  (originator and session identifier)
+// s=  (session name)
+// i=* (session information)
+// u=* (URI of description)
+// e=* (email address)
+// p=* (phone number)
+// c=* (connection information -- not required if included in all media)
+// b=* (zero or more bandwidth information lines)
+// One or more time descriptions ("t=" and "r=" lines; see below)
+// z=* (time zone adjustments)
+// k=* (encryption key)
+// a=* (zero or more session attribute lines)
+// Zero or more media descriptions
+// https://tools.ietf.org/html/rfc4566#section-5
 fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     map(
         tuple((

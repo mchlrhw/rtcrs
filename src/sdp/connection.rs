@@ -14,6 +14,8 @@ pub struct Connection {
     pub connection_address: String,
 }
 
+// c=<nettype> <addrtype> <connection-address>
+// https://tools.ietf.org/html/rfc4566#section-5.7
 pub fn connection(input: Span) -> IResult<Span, Connection> {
     let (remainder, span) = preceded(
         tag("c="),

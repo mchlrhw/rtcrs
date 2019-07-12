@@ -31,6 +31,8 @@ pub struct Media {
     pub format: String,
 }
 
+// m=<media> <port> <proto> <fmt> ...
+// https://tools.ietf.org/html/rfc4566#section-5.14
 fn media(input: Span) -> IResult<Span, Media> {
     let (remainder, span) = preceded(
         tag("m="),
@@ -123,6 +125,13 @@ impl MediaDescription {
     }
 }
 
+// m=  (media name and transport address)
+// i=* (media title)
+// c=* (connection information -- optional if included at session level)
+// b=* (zero or more bandwidth information lines)
+// k=* (encryption key)
+// a=* (zero or more media attribute lines)
+// https://tools.ietf.org/html/rfc4566#section-5
 pub fn media_description(input: Span) -> IResult<Span, MediaDescription> {
     map(
         tuple((

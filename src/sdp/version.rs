@@ -26,6 +26,8 @@ fn test_serialize_version() {
     assert_eq!(expected, actual);
 }
 
+// v=0
+// https://tools.ietf.org/html/rfc4566#section-5.1
 pub fn version(input: Span) -> IResult<Span, Version> {
     let (remainder, span) = delimited(
         tag("v="),

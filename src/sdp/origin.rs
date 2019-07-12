@@ -17,6 +17,8 @@ pub struct Origin {
     pub unicast_address: String,
 }
 
+// o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
+// https://tools.ietf.org/html/rfc4566#section-5.2
 pub fn origin(input: Span) -> IResult<Span, Origin> {
     let (remainder, span) = preceded(
         tag("o="),

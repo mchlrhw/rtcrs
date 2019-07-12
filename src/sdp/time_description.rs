@@ -15,6 +15,8 @@ pub struct Timing {
     pub stop_time: u64,
 }
 
+// t=<start-time> <stop-time>
+// https://tools.ietf.org/html/rfc4566#section-5.9
 pub fn timing(input: Span) -> IResult<Span, Timing> {
     let (remainder, span) = preceded(
         tag("t="),
@@ -74,6 +76,8 @@ fn offset(input: Span) -> IResult<Span, u64> {
     Ok((remainder, offset))
 }
 
+// r=<repeat interval> <active duration> <offsets from start-time>
+// https://tools.ietf.org/html/rfc4566#section-5.10
 pub fn repeat(input: Span) -> IResult<Span, Repeat> {
     let (remainder, span) = preceded(
         tag("r="),
@@ -137,6 +141,9 @@ impl TimeDescription {
     }
 }
 
+// t=  (time the session is active)
+// r=* (zero or more repeat times)
+// https://tools.ietf.org/html/rfc4566#section-5
 pub fn time_description(input: Span) -> IResult<Span, TimeDescription> {
     map(
         tuple((

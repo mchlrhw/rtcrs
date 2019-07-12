@@ -10,6 +10,8 @@ use crate::sdp::Span;
 #[derive(Debug, PartialEq)]
 pub struct SessionName(pub String);
 
+// s=<session name>
+// https://tools.ietf.org/html/rfc4566#section-5.3
 pub fn session_name(input: Span) -> IResult<Span, SessionName> {
     let (remainder, span) = delimited(
         tag("s="),

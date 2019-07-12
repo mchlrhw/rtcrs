@@ -14,6 +14,8 @@ pub enum Attribute {
     Value(String, String),
 }
 
+// a=<attribute>
+// https://tools.ietf.org/html/rfc4566#section-5.13
 fn property_attribute(input: Span) -> IResult<Span, Attribute> {
     let (remainder, span) = not_line_ending(input)?;
 
@@ -30,6 +32,8 @@ fn test_property_attribute() {
     assert_eq!(expected, actual);
 }
 
+// a=<attribute>:<value>
+// https://tools.ietf.org/html/rfc4566#section-5.13
 fn value_attribute(input: Span) -> IResult<Span, Attribute> {
     let (remainder, (property_span, value_span)) = pair(
         take_till1(|c: char| c == ':' || c.is_whitespace()),
