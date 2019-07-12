@@ -9,7 +9,7 @@ use crate::sdp::{
     Span,
     attribute::{ Attribute, attribute },
     connection::{ Connection, connection },
-    media_description::{ Media, MediaType, MediaDescription, media_description },
+    media_description::{ Media, MediaDescription, MediaType, media_description },
     origin::{ Origin, origin },
     session_name::{ SessionName, session_name },
     time_description::{ TimeDescription, Timing, time_description },
