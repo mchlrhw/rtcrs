@@ -13,6 +13,7 @@ use crate::sdp::{
     session_information::{session_information, SessionInformation},
     session_name::{session_name, SessionName},
     time_description::{time_description, TimeDescription, Timing},
+    uri::{uri, URI},
     version::{version, Version},
     Span,
 };
@@ -23,6 +24,7 @@ struct SessionDescription {
     pub origin: Origin,
     pub session_name: SessionName,
     pub session_information: Option<SessionInformation>,
+    pub uri: Option<URI>,
     pub connection: Option<Connection>,
     pub time_description: TimeDescription,
     pub attributes: Vec<Attribute>,
@@ -36,6 +38,7 @@ impl SessionDescription {
             Origin,
             SessionName,
             Option<SessionInformation>,
+            Option<URI>,
             Option<Connection>,
             TimeDescription,
             Vec<Attribute>,
@@ -47,10 +50,11 @@ impl SessionDescription {
             origin: args.1,
             session_name: args.2,
             session_information: args.3,
-            connection: args.4,
-            time_description: args.5,
-            attributes: args.6,
-            media_descriptions: args.7,
+            uri: args.4,
+            connection: args.5,
+            time_description: args.6,
+            attributes: args.7,
+            media_descriptions: args.8,
         }
     }
 }
@@ -77,6 +81,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
             origin,
             session_name,
             opt(session_information),
+            opt(uri),
             opt(connection),
             time_description,
             many0(attribute),
@@ -122,6 +127,7 @@ a=rtpmap:99 h263-1998/90000
         },
         session_name: SessionName("-".to_owned()),
         session_information: None,
+        uri: None,
         connection: Some(Connection {
             network_type: "IN".to_owned(),
             address_type: "IP4".to_owned(),

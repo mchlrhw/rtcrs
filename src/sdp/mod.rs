@@ -6,6 +6,7 @@ mod session_description;
 mod session_information;
 mod session_name;
 mod time_description;
+mod uri;
 mod version;
 
 use nom_locate::LocatedSpan;
