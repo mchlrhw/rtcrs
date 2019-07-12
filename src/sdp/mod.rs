@@ -3,6 +3,7 @@ mod connection;
 mod media_description;
 mod origin;
 mod session_description;
+mod session_information;
 mod session_name;
 mod time_description;
 mod version;
