@@ -1,10 +1,10 @@
 use std::fmt;
 
 use nom::{
-    IResult,
     bytes::complete::tag,
-    character::complete::{ digit1, line_ending },
+    character::complete::{digit1, line_ending},
     sequence::delimited,
+    IResult,
 };
 
 use crate::sdp::Span;
@@ -29,11 +29,7 @@ fn test_serialize_version() {
 // v=0
 // https://tools.ietf.org/html/rfc4566#section-5.1
 pub fn version(input: Span) -> IResult<Span, Version> {
-    let (remainder, span) = delimited(
-        tag("v="),
-        digit1,
-        line_ending,
-    )(input)?;
+    let (remainder, span) = delimited(tag("v="), digit1, line_ending)(input)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix

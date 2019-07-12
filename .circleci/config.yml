@@ -15,10 +15,26 @@ commands:
       - restore_cache:
           name: Restore cache
           key: sccache-{{ arch }}-{{ .Environment.CIRCLE_JOB }}
-  run_tests:
+  run_lint_and_test:
     steps:
       - run:
-          name: Run tests
+          name: Tool versions
+          command: |
+            rustc --version
+            cargo --version
+            rustup --version
+      - run:
+          name: Format
+          command: |
+            rustup component add rustfmt
+            cargo fmt -- --check
+      - run:
+          name: Lint
+          command: |
+            rustup component add clippy
+            cargo clippy --all
+      - run:
+          name: Test
           command: cargo test
   save_sccache:
     steps:
@@ -36,7 +52,7 @@ jobs:
       - checkout
       - setup_sccache
       - restore_sccache
-      - run_tests
+      - run_lint_and_test
       - save_sccache
 
 workflows:

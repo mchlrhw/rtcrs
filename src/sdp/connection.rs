@@ -1,8 +1,8 @@
 use nom::{
+    bytes::complete::{tag, take_till1},
+    character::complete::{line_ending, not_line_ending},
+    sequence::{delimited, preceded},
     IResult,
-    bytes::complete::{ tag, take_till1 },
-    character::complete::{ line_ending, not_line_ending },
-    sequence::{ delimited, preceded },
 };
 
 use crate::sdp::Span;
@@ -17,25 +17,15 @@ pub struct Connection {
 // c=<nettype> <addrtype> <connection-address>
 // https://tools.ietf.org/html/rfc4566#section-5.7
 pub fn connection(input: Span) -> IResult<Span, Connection> {
-    let (remainder, span) = preceded(
-        tag("c="),
-        take_till1(|c| c == ' '),
-    )(input)?;
+    let (remainder, span) = preceded(tag("c="), take_till1(|c| c == ' '))(input)?;
 
     let network_type = span.fragment.to_owned();
 
-    let (remainder, span) = preceded(
-        tag(" "),
-        take_till1(|c| c == ' '),
-    )(remainder)?;
+    let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
     let address_type = span.fragment.to_owned();
 
-    let (remainder, span) = delimited(
-        tag(" "),
-        not_line_ending,
-        line_ending,
-    )(remainder)?;
+    let (remainder, span) = delimited(tag(" "), not_line_ending, line_ending)(remainder)?;
 
     let connection_address = span.fragment.to_owned();
 

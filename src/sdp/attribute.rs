@@ -1,9 +1,9 @@
 use nom::{
-    IResult,
     branch::alt,
-    bytes::complete::{ tag, take_till1 },
-    character::complete::{ line_ending, not_line_ending },
-    sequence::{ delimited, pair, preceded },
+    bytes::complete::{tag, take_till1},
+    character::complete::{line_ending, not_line_ending},
+    sequence::{delimited, pair, preceded},
+    IResult,
 };
 
 use crate::sdp::Span;
@@ -37,10 +37,7 @@ fn test_property_attribute() {
 fn value_attribute(input: Span) -> IResult<Span, Attribute> {
     let (remainder, (property_span, value_span)) = pair(
         take_till1(|c: char| c == ':' || c.is_whitespace()),
-        preceded(
-            tag(":"),
-            not_line_ending,
-        ),
+        preceded(tag(":"), not_line_ending),
     )(input)?;
 
     let attribute = Attribute::Value(
@@ -54,10 +51,7 @@ fn value_attribute(input: Span) -> IResult<Span, Attribute> {
 #[test]
 fn test_value_attribute() {
     let input = Span::new("msid-semantic: WMS stream");
-    let expected = Attribute::Value(
-        "msid-semantic".to_owned(),
-        " WMS stream".to_owned(),
-    );
+    let expected = Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned());
     let actual = value_attribute(input).unwrap().1;
     assert_eq!(expected, actual);
 }
@@ -65,10 +59,7 @@ fn test_value_attribute() {
 pub fn attribute(input: Span) -> IResult<Span, Attribute> {
     delimited(
         tag("a="),
-        alt((
-            value_attribute,
-            property_attribute,
-        )),
+        alt((value_attribute, property_attribute)),
         line_ending,
     )(input)
 }
@@ -76,10 +67,7 @@ pub fn attribute(input: Span) -> IResult<Span, Attribute> {
 #[test]
 fn test_attribute() {
     let input = Span::new("a=msid-semantic: WMS stream\r\n");
-    let expected = Attribute::Value(
-        "msid-semantic".to_owned(),
-        " WMS stream".to_owned(),
-    );
+    let expected = Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned());
     let actual = attribute(input).unwrap().1;
     assert_eq!(expected, actual);
 }

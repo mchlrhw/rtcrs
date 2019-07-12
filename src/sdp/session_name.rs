@@ -1,8 +1,8 @@
 use nom::{
-    IResult,
     bytes::complete::tag,
-    character::complete::{ line_ending, not_line_ending },
+    character::complete::{line_ending, not_line_ending},
     sequence::delimited,
+    IResult,
 };
 
 use crate::sdp::Span;
@@ -13,11 +13,7 @@ pub struct SessionName(pub String);
 // s=<session name>
 // https://tools.ietf.org/html/rfc4566#section-5.3
 pub fn session_name(input: Span) -> IResult<Span, SessionName> {
-    let (remainder, span) = delimited(
-        tag("s="),
-        not_line_ending,
-        line_ending,
-    )(input)?;
+    let (remainder, span) = delimited(tag("s="), not_line_ending, line_ending)(input)?;
 
     let session_name = SessionName(span.fragment.to_owned());
 

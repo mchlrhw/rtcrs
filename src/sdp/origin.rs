@@ -1,8 +1,8 @@
 use nom::{
+    bytes::complete::{tag, take_till1},
+    character::complete::{digit1, line_ending, not_line_ending},
+    sequence::{delimited, preceded},
     IResult,
-    bytes::complete::{ tag, take_till1 },
-    character::complete::{ digit1, line_ending, not_line_ending },
-    sequence::{ delimited, preceded },
 };
 
 use crate::sdp::Span;
@@ -20,50 +20,31 @@ pub struct Origin {
 // o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
 // https://tools.ietf.org/html/rfc4566#section-5.2
 pub fn origin(input: Span) -> IResult<Span, Origin> {
-    let (remainder, span) = preceded(
-        tag("o="),
-        take_till1(|c| c == ' '),
-    )(input)?;
+    let (remainder, span) = preceded(tag("o="), take_till1(|c| c == ' '))(input)?;
 
     let username = span.fragment.to_owned();
 
-    let (remainder, span) = preceded(
-        tag(" "),
-        digit1,
-    )(remainder)?;
+    let (remainder, span) = preceded(tag(" "), digit1)(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
     let session_id = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, span) = preceded(
-        tag(" "),
-        digit1,
-    )(remainder)?;
+    let (remainder, span) = preceded(tag(" "), digit1)(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
     let session_version = u64::from_str_radix(span.fragment, 10).unwrap();
 
-    let (remainder, span) = preceded(
-        tag(" "),
-        take_till1(|c| c == ' '),
-    )(remainder)?;
+    let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
     let network_type = span.fragment.to_owned();
 
-    let (remainder, span) = preceded(
-        tag(" "),
-        take_till1(|c| c == ' '),
-    )(remainder)?;
+    let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
     let address_type = span.fragment.to_owned();
 
-    let (remainder, span) = delimited(
-        tag(" "),
-        not_line_ending,
-        line_ending,
-    )(remainder)?;
+    let (remainder, span) = delimited(tag(" "), not_line_ending, line_ending)(remainder)?;
 
     let unicast_address = span.fragment.to_owned();
 

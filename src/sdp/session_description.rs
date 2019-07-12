@@ -1,19 +1,19 @@
 use nom::{
-    IResult,
-    combinator::{ all_consuming, map, opt },
+    combinator::{all_consuming, map, opt},
     multi::many0,
     sequence::tuple,
+    IResult,
 };
 
 use crate::sdp::{
+    attribute::{attribute, Attribute},
+    connection::{connection, Connection},
+    media_description::{media_description, Media, MediaDescription, MediaType},
+    origin::{origin, Origin},
+    session_name::{session_name, SessionName},
+    time_description::{time_description, TimeDescription, Timing},
+    version::{version, Version},
     Span,
-    attribute::{ Attribute, attribute },
-    connection::{ Connection, connection },
-    media_description::{ Media, MediaDescription, MediaType, media_description },
-    origin::{ Origin, origin },
-    session_name::{ SessionName, session_name },
-    time_description::{ TimeDescription, Timing, time_description },
-    version::{ Version, version },
 };
 
 #[derive(Debug, PartialEq)]
@@ -28,15 +28,17 @@ struct SessionDescription {
 }
 
 impl SessionDescription {
-    fn from_tuple(args: (
-        Version,
-        Origin,
-        SessionName,
-        Option<Connection>,
-        TimeDescription,
-        Vec<Attribute>,
-        Vec<MediaDescription>,
-    )) -> Self {
+    fn from_tuple(
+        args: (
+            Version,
+            Origin,
+            SessionName,
+            Option<Connection>,
+            TimeDescription,
+            Vec<Attribute>,
+            Vec<MediaDescription>,
+        ),
+    ) -> Self {
         Self {
             version: args.0,
             origin: args.1,
@@ -150,16 +152,13 @@ a=rtpmap:99 h263-1998/90000
                     format: "99".to_owned(),
                 },
                 connection: None,
-                attributes: vec![
-                    Attribute::Value(
-                        "rtpmap".to_owned(),
-                        "99 h263-1998/90000".to_owned(),
-                    ),
-                ],
+                attributes: vec![Attribute::Value(
+                    "rtpmap".to_owned(),
+                    "99 h263-1998/90000".to_owned(),
+                )],
             },
         ],
     };
     let actual = SessionDescription::from_str(sdp);
     assert_eq!(expected, actual);
 }
-
