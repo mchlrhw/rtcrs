@@ -1,7 +1,9 @@
 mod attribute;
 mod connection;
+mod email_address;
 mod media_description;
 mod origin;
+mod phone_number;
 mod session_description;
 mod session_information;
 mod session_name;
