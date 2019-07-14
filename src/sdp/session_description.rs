@@ -7,6 +7,7 @@ use nom::{
 
 use crate::sdp::{
     attribute::{attribute, Attribute},
+    bandwidth::{bandwidth, Bandwidth},
     connection::{connection, Connection},
     email_address::{email_address, EmailAddress},
     media_description::{media_description, Media, MediaDescription, MediaType},
@@ -30,6 +31,7 @@ struct SessionDescription {
     pub email_addresses: Vec<EmailAddress>,
     pub phone_numbers: Vec<PhoneNumber>,
     pub connection: Option<Connection>,
+    pub bandwidths: Vec<Bandwidth>,
     pub time_description: TimeDescription,
     pub attributes: Vec<Attribute>,
     pub media_descriptions: Vec<MediaDescription>,
@@ -46,6 +48,7 @@ impl SessionDescription {
             Vec<EmailAddress>,
             Vec<PhoneNumber>,
             Option<Connection>,
+            Vec<Bandwidth>,
             TimeDescription,
             Vec<Attribute>,
             Vec<MediaDescription>,
@@ -60,9 +63,10 @@ impl SessionDescription {
             email_addresses: args.5,
             phone_numbers: args.6,
             connection: args.7,
-            time_description: args.8,
-            attributes: args.9,
-            media_descriptions: args.10,
+            bandwidths: args.8,
+            time_description: args.9,
+            attributes: args.10,
+            media_descriptions: args.11,
         }
     }
 }
@@ -93,6 +97,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
             many0(email_address),
             many0(phone_number),
             opt(connection),
+            many0(bandwidth),
             time_description,
             many0(attribute),
             many0(media_description),
@@ -145,6 +150,7 @@ a=rtpmap:99 h263-1998/90000
             address_type: "IP4".to_owned(),
             connection_address: "127.0.0.1".to_owned(),
         }),
+        bandwidths: vec![],
         time_description: TimeDescription {
             timing: Timing {
                 start_time: 0,
