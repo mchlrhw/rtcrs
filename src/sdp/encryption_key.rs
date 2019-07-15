@@ -1,0 +1,74 @@
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{line_ending, not_line_ending},
+    combinator::opt,
+    sequence::{delimited, pair, preceded},
+    IResult,
+};
+
+use crate::sdp::Span;
+
+#[derive(Debug, PartialEq)]
+pub enum RetrievalMethod {
+    Base64,
+    Clear,
+    Prompt,
+    URI,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct EncryptionKey {
+    pub method: RetrievalMethod,
+    pub data: Option<String>,
+}
+
+// k=<method>
+// k=<method>:<encryption key>
+// https://tools.ietf.org/html/rfc4566#section-5.12
+pub fn encryption_key(input: Span) -> IResult<Span, EncryptionKey> {
+    let (remainder, (method_span, data_opt)) = delimited(
+        tag("k="),
+        pair(
+            alt((tag("base64"), tag("clear"), tag("prompt"), tag("uri"))),
+            opt(preceded(tag(":"), not_line_ending)),
+        ),
+        line_ending,
+    )(input)?;
+
+    let method = match method_span.fragment {
+        "base64" => RetrievalMethod::Base64,
+        "clear" => RetrievalMethod::Clear,
+        "prompt" => RetrievalMethod::Prompt,
+        "uri" => RetrievalMethod::URI,
+        _ => unreachable!(),
+    };
+    // TODO: ensure base64, clear and uri all have Some(data)
+    let data = data_opt.map(|s| s.fragment.to_owned());
+
+    let encryption_key = EncryptionKey { method, data };
+
+    Ok((remainder, encryption_key))
+}
+
+#[test]
+fn test_encryption_key_with_data() {
+    let input = Span::new("k=clear:encryption_key\r\n");
+    let expected = EncryptionKey {
+        method: RetrievalMethod::Clear,
+        data: Some("encryption_key".to_owned()),
+    };
+    let actual = encryption_key(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
+
+#[test]
+fn test_encryption_key_without_data() {
+    let input = Span::new("k=prompt\r\n");
+    let expected = EncryptionKey {
+        method: RetrievalMethod::Prompt,
+        data: None,
+    };
+    let actual = encryption_key(input).unwrap().1;
+    assert_eq!(expected, actual);
+}
