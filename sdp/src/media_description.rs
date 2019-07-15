@@ -109,17 +109,17 @@ pub struct MediaDescription {
     pub attributes: Vec<Attribute>,
 }
 
+type MediaDescriptionArgs = (
+    Media,
+    Option<SessionInformation>,
+    Option<Connection>,
+    Vec<Bandwidth>,
+    Option<EncryptionKey>,
+    Vec<Attribute>,
+);
+
 impl MediaDescription {
-    fn from_tuple(
-        args: (
-            Media,
-            Option<SessionInformation>,
-            Option<Connection>,
-            Vec<Bandwidth>,
-            Option<EncryptionKey>,
-            Vec<Attribute>,
-        ),
-    ) -> Self {
+    fn from_tuple(args: MediaDescriptionArgs) -> Self {
         Self {
             media: args.0,
             title: args.1,

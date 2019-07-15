@@ -32,7 +32,7 @@ commands:
           name: Lint
           command: |
             rustup component add clippy
-            cargo clippy --all
+            cargo clippy --all -- -D warnings
       - run:
           name: Test
           command: cargo test

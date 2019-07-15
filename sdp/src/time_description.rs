@@ -93,6 +93,7 @@ pub fn repeat(input: Span) -> IResult<Span, Repeat> {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_repeat() {
     let input = Span::new("r=604800 3600 0 90000\r\n");
     let expected = Repeat {
@@ -127,6 +128,7 @@ pub fn time_description(input: Span) -> IResult<Span, TimeDescription> {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_time_description() {
     let input = Span::new("t=3034423619 3042462419\r\n");
     let expected = TimeDescription {
@@ -141,6 +143,7 @@ fn test_time_description() {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_time_description_with_repeat_times() {
     let input = Span::new("t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n");
     let expected = TimeDescription {

@@ -1,3 +1,5 @@
+#![allow(clippy::write_with_newline)]
+
 mod attribute;
 mod bandwidth;
 mod connection;
@@ -14,8 +16,15 @@ mod time_zone;
 mod uri;
 mod version;
 
+use failure::Fail;
 use nom_locate::LocatedSpan;
+
+pub use session_description::SessionDescription;
 
 type Span<'a> = LocatedSpan<&'a str>;
 
-pub use session_description::SessionDescription;
+#[derive(Debug, Fail)]
+pub enum SDPError {
+    #[fail(display = "invalid session description")]
+    InvalidSessionDescription,
+}

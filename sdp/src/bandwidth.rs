@@ -36,7 +36,7 @@ pub fn bandwidth(input: Span) -> IResult<Span, Bandwidth> {
     let typ = match span.fragment {
         "CT" => BandwidthType::CT,
         "AS" => BandwidthType::AS,
-        s @ _ => BandwidthType::Experimental(s.to_owned()),
+        s => BandwidthType::Experimental(s.to_owned()),
     };
 
     let (remainder, span) = delimited(tag(":"), digit1, line_ending)(remainder)?;

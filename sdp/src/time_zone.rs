@@ -71,6 +71,7 @@ pub fn time_zone(input: Span) -> IResult<Span, TimeZone> {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_time_zone() {
     let input = Span::new("z=2882844526 -1h 2898848070 0\r\n");
     let expected = TimeZone {

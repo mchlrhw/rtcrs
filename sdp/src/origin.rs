@@ -61,6 +61,7 @@ pub fn origin(input: Span) -> IResult<Span, Origin> {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_origin() {
     let input = Span::new("o=- 1433832402044130222 3 IN IP4 127.0.0.1\r\n");
     let expected = Origin {
