@@ -2,6 +2,7 @@ mod attribute;
 mod bandwidth;
 mod connection;
 mod email_address;
+mod encryption_key;
 mod media_description;
 mod origin;
 mod phone_number;

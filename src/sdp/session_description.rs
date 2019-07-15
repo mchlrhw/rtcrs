@@ -10,6 +10,7 @@ use crate::sdp::{
     bandwidth::{bandwidth, Bandwidth},
     connection::{connection, Connection},
     email_address::{email_address, EmailAddress},
+    encryption_key::{encryption_key, EncryptionKey},
     media_description::{media_description, Media, MediaDescription, MediaType},
     origin::{origin, Origin},
     phone_number::{phone_number, PhoneNumber},
@@ -35,6 +36,7 @@ struct SessionDescription {
     pub bandwidths: Vec<Bandwidth>,
     pub time_description: TimeDescription,
     pub time_zone: Option<TimeZone>,
+    pub encryption_key: Option<EncryptionKey>,
     pub attributes: Vec<Attribute>,
     pub media_descriptions: Vec<MediaDescription>,
 }
@@ -53,6 +55,7 @@ impl SessionDescription {
             Vec<Bandwidth>,
             TimeDescription,
             Option<TimeZone>,
+            Option<EncryptionKey>,
             Vec<Attribute>,
             Vec<MediaDescription>,
         ),
@@ -69,8 +72,9 @@ impl SessionDescription {
             bandwidths: args.8,
             time_description: args.9,
             time_zone: args.10,
-            attributes: args.11,
-            media_descriptions: args.12,
+            encryption_key: args.11,
+            attributes: args.12,
+            media_descriptions: args.13,
         }
     }
 }
@@ -104,6 +108,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
             many0(bandwidth),
             time_description,
             opt(time_zone),
+            opt(encryption_key),
             many0(attribute),
             many0(media_description),
         )),
@@ -164,6 +169,7 @@ a=rtpmap:99 h263-1998/90000
             repeat_times: vec![],
         },
         time_zone: None,
+        encryption_key: None,
         attributes: vec![
             Attribute::Property("recvonly".to_owned()),
             Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
