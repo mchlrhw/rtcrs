@@ -183,7 +183,10 @@ a=rtpmap:99 h263-1998/90000
                     protocol: "RTP/AVP".to_owned(),
                     format: "0".to_owned(),
                 },
+                title: None,
                 connection: None,
+                bandwidths: vec![],
+                encryption_key: None,
                 attributes: vec![],
             },
             MediaDescription {
@@ -193,7 +196,10 @@ a=rtpmap:99 h263-1998/90000
                     protocol: "RTP/AVP".to_owned(),
                     format: "99".to_owned(),
                 },
+                title: None,
                 connection: None,
+                bandwidths: vec![],
+                encryption_key: None,
                 attributes: vec![Attribute::Value(
                     "rtpmap".to_owned(),
                     "99 h263-1998/90000".to_owned(),

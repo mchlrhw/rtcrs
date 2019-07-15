@@ -10,7 +10,10 @@ use nom::{
 
 use crate::sdp::{
     attribute::{attribute, Attribute},
+    bandwidth::{bandwidth, Bandwidth},
     connection::{connection, Connection},
+    encryption_key::{encryption_key, EncryptionKey},
+    session_information::{session_information, SessionInformation},
     Span,
 };
 
@@ -99,16 +102,31 @@ fn test_media() {
 #[derive(Debug, PartialEq)]
 pub struct MediaDescription {
     pub media: Media,
+    pub title: Option<SessionInformation>,
     pub connection: Option<Connection>,
+    pub bandwidths: Vec<Bandwidth>,
+    pub encryption_key: Option<EncryptionKey>,
     pub attributes: Vec<Attribute>,
 }
 
 impl MediaDescription {
-    fn from_tuple(args: (Media, Option<Connection>, Vec<Attribute>)) -> Self {
+    fn from_tuple(
+        args: (
+            Media,
+            Option<SessionInformation>,
+            Option<Connection>,
+            Vec<Bandwidth>,
+            Option<EncryptionKey>,
+            Vec<Attribute>,
+        ),
+    ) -> Self {
         Self {
             media: args.0,
-            connection: args.1,
-            attributes: args.2,
+            title: args.1,
+            connection: args.2,
+            bandwidths: args.3,
+            encryption_key: args.4,
+            attributes: args.5,
         }
     }
 }
@@ -124,8 +142,11 @@ pub fn media_description(input: Span) -> IResult<Span, MediaDescription> {
     map(
         tuple((
             media,
+            opt(session_information),
             // TODO: make this non-optional if no connection at session level
             opt(connection),
+            many0(bandwidth),
+            opt(encryption_key),
             many0(attribute),
         )),
         MediaDescription::from_tuple,
@@ -142,7 +163,10 @@ fn test_media_description() {
             protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
             format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
         },
+        title: None,
         connection: None,
+        bandwidths: vec![],
+        encryption_key: None,
         attributes: vec![Attribute::Value(
             "rtcp".to_owned(),
             "9 IN IP4 0.0.0.0".to_owned(),
