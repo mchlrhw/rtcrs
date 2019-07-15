@@ -9,6 +9,7 @@ mod session_description;
 mod session_information;
 mod session_name;
 mod time_description;
+mod time_zone;
 mod uri;
 mod version;
 

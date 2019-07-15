@@ -16,6 +16,7 @@ use crate::sdp::{
     session_information::{session_information, SessionInformation},
     session_name::{session_name, SessionName},
     time_description::{time_description, TimeDescription, Timing},
+    time_zone::{time_zone, TimeZone},
     uri::{uri, URI},
     version::{version, Version},
     Span,
@@ -33,6 +34,7 @@ struct SessionDescription {
     pub connection: Option<Connection>,
     pub bandwidths: Vec<Bandwidth>,
     pub time_description: TimeDescription,
+    pub time_zone: Option<TimeZone>,
     pub attributes: Vec<Attribute>,
     pub media_descriptions: Vec<MediaDescription>,
 }
@@ -50,6 +52,7 @@ impl SessionDescription {
             Option<Connection>,
             Vec<Bandwidth>,
             TimeDescription,
+            Option<TimeZone>,
             Vec<Attribute>,
             Vec<MediaDescription>,
         ),
@@ -65,8 +68,9 @@ impl SessionDescription {
             connection: args.7,
             bandwidths: args.8,
             time_description: args.9,
-            attributes: args.10,
-            media_descriptions: args.11,
+            time_zone: args.10,
+            attributes: args.11,
+            media_descriptions: args.12,
         }
     }
 }
@@ -99,6 +103,7 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
             opt(connection),
             many0(bandwidth),
             time_description,
+            opt(time_zone),
             many0(attribute),
             many0(media_description),
         )),
@@ -158,6 +163,7 @@ a=rtpmap:99 h263-1998/90000
             },
             repeat_times: vec![],
         },
+        time_zone: None,
         attributes: vec![
             Attribute::Property("recvonly".to_owned()),
             Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
