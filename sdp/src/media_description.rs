@@ -8,7 +8,7 @@ use nom::{
     IResult,
 };
 
-use crate::sdp::{
+use crate::{
     attribute::{attribute, Attribute},
     bandwidth::{bandwidth, Bandwidth},
     connection::{connection, Connection},

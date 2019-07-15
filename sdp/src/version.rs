@@ -7,7 +7,7 @@ use nom::{
     IResult,
 };
 
-use crate::sdp::Span;
+use crate::Span;
 
 #[derive(Debug, PartialEq)]
 pub struct Version(pub u8);

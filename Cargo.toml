@@ -1,9 +1,5 @@
-[package]
-name = "rtcrs"
-version = "0.1.0"
-authors = ["mchlrhw <4028654+mchlrhw@users.noreply.github.com>"]
-edition = "2018"
+[workspace]
 
-[dependencies]
-nom = "5"
-nom_locate = { git = "https://github.com/fflorent/nom_locate.git" }
+members = [
+    "sdp",
+]

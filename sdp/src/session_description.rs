@@ -5,7 +5,7 @@ use nom::{
     IResult,
 };
 
-use crate::sdp::{
+use crate::{
     attribute::{attribute, Attribute},
     bandwidth::{bandwidth, Bandwidth},
     connection::{connection, Connection},
@@ -24,7 +24,7 @@ use crate::sdp::{
 };
 
 #[derive(Debug, PartialEq)]
-struct SessionDescription {
+pub struct SessionDescription {
     pub version: Version,
     pub origin: Origin,
     pub session_name: SessionName,

@@ -17,3 +17,5 @@ mod version;
 use nom_locate::LocatedSpan;
 
 type Span<'a> = LocatedSpan<&'a str>;
+
+pub use session_description::SessionDescription;

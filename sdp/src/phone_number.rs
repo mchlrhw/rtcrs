@@ -5,7 +5,7 @@ use nom::{
     IResult,
 };
 
-use crate::sdp::Span;
+use crate::Span;
 
 #[derive(Debug, PartialEq)]
 pub struct PhoneNumber(pub String);
