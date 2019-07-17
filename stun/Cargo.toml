@@ -1,0 +1,8 @@
+[package]
+name = "stun"
+version = "0.1.0"
+authors = ["mchlrhw <4028654+mchlrhw@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "5"
