@@ -60,13 +60,13 @@ impl Header {
 fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method)> {
     let (remainder, (m_11_7, c_1, m_6_4, c_0, m_3_0)): (&[u8], (u8, u8, u8, u8, u8)) =
         bits::<_, _, (_, _), _, _>(preceded(
-            tag_bits(0b00, 2usize),
+            tag_bits(0b00, 2_usize),
             tuple((
-                take_bits(5usize),
-                take_bits(1usize),
-                take_bits(3usize),
-                take_bits(1usize),
-                take_bits(4usize),
+                take_bits(5_usize),
+                take_bits(1_usize),
+                take_bits(3_usize),
+                take_bits(1_usize),
+                take_bits(4_usize),
             )),
         ))(input)?;
 
@@ -107,9 +107,9 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method)> {
 pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
     map(
         tuple((
-            map_parser(take_bytes(2usize), message_type),
+            map_parser(take_bytes(2_usize), message_type),
             terminated(be_u16, tag_bytes(MAGIC_COOKIE.to_be_bytes())),
-            map(take_bytes(12usize), Vec::from),
+            map(take_bytes(12_usize), Vec::from),
         )),
         Header::from_tuple,
     )(input)

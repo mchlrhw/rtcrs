@@ -21,10 +21,10 @@ pub struct Adjustment {
 impl fmt::Display for Adjustment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let offset_hours = self.offset / 3600;
-        let units = if offset_hours != 0 {
-            "h".to_owned()
-        } else {
+        let units = if offset_hours == 0 {
             "".to_owned()
+        } else {
+            "h".to_owned()
         };
         let offset_string = format!("{}{}", offset_hours, units);
         write!(f, "{} {}", self.time, offset_string)
