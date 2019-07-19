@@ -17,6 +17,16 @@ pub enum Attribute {
     Value(String, String),
 }
 
+impl Attribute {
+    pub fn property(p: &str) -> Self {
+        Attribute::Property(p.to_owned())
+    }
+
+    pub fn value(k: &str, v: &str) -> Self {
+        Attribute::Value(k.to_owned(), v.to_owned())
+    }
+}
+
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -66,7 +76,7 @@ mod tests {
 
     #[test]
     fn display_property_attribute() {
-        let attribute = Attribute::Property("recvonly".to_owned());
+        let attribute = Attribute::property("recvonly");
         let expected = "a=recvonly\r\n";
         let actual = attribute.to_string();
         assert_eq!(expected, actual);
@@ -74,7 +84,7 @@ mod tests {
 
     #[test]
     fn display_value_attribute() {
-        let attribute = Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned());
+        let attribute = Attribute::value("msid-semantic", " WMS stream");
         let expected = "a=msid-semantic: WMS stream\r\n";
         let actual = attribute.to_string();
         assert_eq!(expected, actual);
@@ -83,7 +93,7 @@ mod tests {
     #[test]
     fn parse_value_attribute() {
         let input = Span::new("msid-semantic: WMS stream");
-        let expected = Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned());
+        let expected = Attribute::value("msid-semantic", " WMS stream");
         let actual = value_attribute(input).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -91,7 +101,7 @@ mod tests {
     #[test]
     fn parse_property_attribute() {
         let input = Span::new("recvonly");
-        let expected = Attribute::Property("recvonly".to_owned());
+        let expected = Attribute::property("recvonly");
         let actual = property_attribute(input).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -99,7 +109,7 @@ mod tests {
     #[test]
     fn parse_attribute() {
         let input = Span::new("a=msid-semantic: WMS stream\r\n");
-        let expected = Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned());
+        let expected = Attribute::value("msid-semantic", " WMS stream");
         let actual = attribute(input).unwrap().1;
         assert_eq!(expected, actual);
     }

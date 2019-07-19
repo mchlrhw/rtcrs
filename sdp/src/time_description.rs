@@ -121,6 +121,11 @@ impl TimeDescription {
         self.repeat_times = repeat_times;
         self
     }
+
+    pub fn and_repeat_time(mut self, repeat_time: Repeat) -> Self {
+        self.repeat_times.push(repeat_time);
+        self
+    }
 }
 
 type TimeDescriptionArgs = (Timing, Vec<Repeat>);
@@ -219,11 +224,11 @@ mod tests {
             start_time: 3034423619,
             stop_time: 3042462419,
         })
-        .with_repeat_times(vec![Repeat {
+        .and_repeat_time(Repeat {
             interval: 604800,
             active_duration: 3600,
             offsets: vec![0, 90000],
-        }]);
+        });
         let expected = "t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n";
         let actual = time_description.to_string();
         assert_eq!(expected, actual);
@@ -247,11 +252,11 @@ mod tests {
             start_time: 3034423619,
             stop_time: 3042462419,
         })
-        .with_repeat_times(vec![Repeat {
+        .and_repeat_time(Repeat {
             interval: 604800,
             active_duration: 3600,
             offsets: vec![0, 90000],
-        }]);
+        });
         let actual = time_description(input).unwrap().1;
         assert_eq!(expected, actual);
     }

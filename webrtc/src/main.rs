@@ -18,33 +18,27 @@ fn main() {
         connection_address: "127.0.0.1".to_owned(),
     })
     .with_attributes(vec![
-        sdp::Attribute::Value("rtpmap".to_owned(), "96 VP8/90000".to_owned()),
-        sdp::Attribute::Value("rtpmap".to_owned(), "97 rtx/90000".to_owned()),
-        sdp::Attribute::Value("fmtp".to_owned(), "97 apt=96".to_owned()),
-        sdp::Attribute::Value("ftcp-fb".to_owned(), "96 goog-remb".to_owned()),
-        sdp::Attribute::Value("ftcp-fb".to_owned(), "96 ccm fir".to_owned()),
-        sdp::Attribute::Value("ftcp-fb".to_owned(), "96 nack".to_owned()),
-        sdp::Attribute::Value("ftcp-fb".to_owned(), "96 nack pli".to_owned()),
-        sdp::Attribute::Value(
-            "extmap".to_owned(),
-            "2 urn:ietf:params:rtp-hdrext:toffset".to_owned(),
+        sdp::Attribute::value("a=rtpmap", "96 VP8/90000"),
+        sdp::Attribute::value("rtpmap", "97 rtx/90000"),
+        sdp::Attribute::value("fmtp", "97 apt=96"),
+        sdp::Attribute::value("ftcp-fb", "96 goog-remb"),
+        sdp::Attribute::value("ftcp-fb", "96 ccm fir"),
+        sdp::Attribute::value("ftcp-fb", "96 nack"),
+        sdp::Attribute::value("ftcp-fb", "96 nack pli"),
+        sdp::Attribute::value("extmap", "2 urn:ietf:params:rtp-hdrext:toffset"),
+        sdp::Attribute::value(
+            "extmap",
+            "3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
         ),
-        sdp::Attribute::Value(
-            "extmap".to_owned(),
-            "3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time".to_owned(),
-        ),
-        sdp::Attribute::Value(
-            "extmap".to_owned(),
-            "4 urn:3gpp:video-orientation".to_owned(),
-        ),
-        sdp::Attribute::Value("setup".to_owned(), "active".to_owned()),
-        sdp::Attribute::Value("mid".to_owned(), "video".to_owned()),
-        sdp::Attribute::Property("recvonly".to_owned()),
-        sdp::Attribute::Value("ice-ufrag".to_owned(), "YKBo".to_owned()),
-        sdp::Attribute::Value("ice-pwd".to_owned(), "TTlUG2PZn1bXg4vzBzVBHnTz".to_owned()),
-        sdp::Attribute::Value("ice-options".to_owned(), "renomination".to_owned()),
-        sdp::Attribute::Property("rtcp-mux".to_owned()),
-        sdp::Attribute::Property("rtcp-rsize".to_owned()),
+        sdp::Attribute::value("extmap", "4 urn:3gpp:video-orientation"),
+        sdp::Attribute::value("setup", "active"),
+        sdp::Attribute::value("mid", "video"),
+        sdp::Attribute::property("recvonly"),
+        sdp::Attribute::value("ice-ufrag", "YKBo"),
+        sdp::Attribute::value("ice-pwd", "TTlUG2PZn1bXg4vzBzVBHnTz"),
+        sdp::Attribute::value("ice-options", "renomination"),
+        sdp::Attribute::property("rtcp-mux"),
+        sdp::Attribute::property("rtcp-rsize"),
     ]);
 
     let session_description = sdp::SessionDescription::base(
@@ -58,23 +52,20 @@ fn main() {
             unicast_address: "127.0.0.1".to_owned(),
         },
         sdp::SessionName("-".to_owned()),
-        sdp::TimeDescription {
-            timing: sdp::Timing {
+        sdp::TimeDescription::base(
+            sdp::Timing {
                 start_time: 0,
                 stop_time: 0,
             },
-            repeat_times: vec![],
-        },
+        ),
     ).with_attributes(
         vec![
-            sdp::Attribute::Property("ice-lite".to_owned()),
-            sdp::Attribute::Value("fingerprint".to_owned(), "sha-512 4E:DD:25:41:95:51:85:B6:6A:29:42:FF:56:5B:41:47:2C:6C:67:36:7D:97:91:5A:65:C7:E1:76:1B:6E:D3:22:45:B4:9F:DF:EA:93:FF:20:F4:CB:A8:53:AF:50:DA:87:5A:C5:4C:5B:F6:4C:50:DC:D9:29:A3:C0:19:7A:17:48".to_owned()),
-            sdp::Attribute::Value("msid-semantic".to_owned(), " WMS *".to_owned()),
-            sdp::Attribute::Value("group".to_owned(), "BUNDLE video".to_owned()),
+            sdp::Attribute::property("ice-lite"),
+            sdp::Attribute::value("fingerprint", "sha-512 4E:DD:25:41:95:51:85:B6:6A:29:42:FF:56:5B:41:47:2C:6C:67:36:7D:97:91:5A:65:C7:E1:76:1B:6E:D3:22:45:B4:9F:DF:EA:93:FF:20:F4:CB:A8:53:AF:50:DA:87:5A:C5:4C:5B:F6:4C:50:DC:D9:29:A3:C0:19:7A:17:48"),
+            sdp::Attribute::value("msid-semantic", " WMS *"),
+            sdp::Attribute::value("group", "BUNDLE video"),
         ],
-    ).with_media_descriptions(
-        vec![video_description],
-    );
+    ).and_media_description(video_description);
 
     info!("{:?}", session_description);
 }

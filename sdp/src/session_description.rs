@@ -80,8 +80,18 @@ impl SessionDescription {
         self
     }
 
+    pub fn and_attribute(mut self, attribute: Attribute) -> Self {
+        self.attributes.push(attribute);
+        self
+    }
+
     pub fn with_media_descriptions(mut self, media_descriptions: Vec<MediaDescription>) -> Self {
         self.media_descriptions = media_descriptions;
+        self
+    }
+
+    pub fn and_media_description(mut self, media_description: MediaDescription) -> Self {
+        self.media_descriptions.push(media_description);
         self
     }
 }
@@ -258,8 +268,56 @@ mod tests {
     };
 
     #[test]
-    fn test_from_str() -> Result<(), Error> {
-        let sdp = r#"v=0
+    fn display_session_description() {
+        let session_description = SessionDescription::base(
+            Version(0),
+            Origin {
+                username: "-".to_owned(),
+                session_id: 1433832402044130222,
+                session_version: 3,
+                network_type: "IN".to_owned(),
+                address_type: "IP4".to_owned(),
+                unicast_address: "127.0.0.1".to_owned(),
+            },
+            SessionName("-".to_owned()),
+            TimeDescription::base(Timing {
+                start_time: 0,
+                stop_time: 0,
+            }),
+        )
+        .with_connection(Connection {
+            network_type: "IN".to_owned(),
+            address_type: "IP4".to_owned(),
+            connection_address: "127.0.0.1".to_owned(),
+        })
+        .with_attributes(vec![
+            Attribute::property("recvonly"),
+            Attribute::value("group", "BUNDLE 0 1"),
+            Attribute::value("msid-semantic", " WMS stream"),
+        ])
+        .with_media_descriptions(vec![
+            MediaDescription::base(Media {
+                typ: MediaType::Audio,
+                port: 49170,
+                protocol: "RTP/AVP".to_owned(),
+                format: "0".to_owned(),
+            }),
+            MediaDescription::base(Media {
+                typ: MediaType::Video,
+                port: 51372,
+                protocol: "RTP/AVP".to_owned(),
+                format: "99".to_owned(),
+            })
+            .and_attribute(Attribute::value("rtpmap", "99 h263-1998/90000")),
+        ]);
+        let expected = "v=0\r\no=- 1433832402044130222 3 IN IP4 127.0.0.1\r\ns=-\r\nc=IN IP4 127.0.0.1\r\nt=0 0\r\na=recvonly\r\na=group:BUNDLE 0 1\r\na=msid-semantic: WMS stream\r\nm=audio 49170 RTP/AVP 0\r\nm=video 51372 RTP/AVP 99\r\na=rtpmap:99 h263-1998/90000\r\n";
+        let actual = session_description.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_session_description() -> Result<(), Error> {
+        let sdp = "v=0
 o=- 1433832402044130222 3 IN IP4 127.0.0.1
 s=-
 c=IN IP4 127.0.0.1
@@ -270,7 +328,7 @@ a=msid-semantic: WMS stream
 m=audio 49170 RTP/AVP 0
 m=video 51372 RTP/AVP 99
 a=rtpmap:99 h263-1998/90000
-"#;
+";
         let expected = SessionDescription::base(
             Version(0),
             Origin {
@@ -293,9 +351,9 @@ a=rtpmap:99 h263-1998/90000
             connection_address: "127.0.0.1".to_owned(),
         })
         .with_attributes(vec![
-            Attribute::Property("recvonly".to_owned()),
-            Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
-            Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned()),
+            Attribute::property("recvonly"),
+            Attribute::value("group", "BUNDLE 0 1"),
+            Attribute::value("msid-semantic", " WMS stream"),
         ])
         .with_media_descriptions(vec![
             MediaDescription::base(Media {
@@ -310,10 +368,7 @@ a=rtpmap:99 h263-1998/90000
                 protocol: "RTP/AVP".to_owned(),
                 format: "99".to_owned(),
             })
-            .with_attributes(vec![Attribute::Value(
-                "rtpmap".to_owned(),
-                "99 h263-1998/90000".to_owned(),
-            )]),
+            .and_attribute(Attribute::value("rtpmap", "99 h263-1998/90000")),
         ]);
         let actual = SessionDescription::from_str(sdp)?;
         assert_eq!(expected, actual);

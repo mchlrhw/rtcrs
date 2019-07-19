@@ -154,6 +154,11 @@ impl MediaDescription {
         self.attributes = attributes;
         self
     }
+
+    pub fn and_attribute(mut self, attribute: Attribute) -> Self {
+        self.attributes.push(attribute);
+        self
+    }
 }
 
 type MediaDescriptionArgs = (
@@ -281,10 +286,8 @@ mod tests {
             protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
             format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
         })
-        .with_attributes(vec![Attribute::Value(
-            "rtcp".to_owned(),
-            "9 IN IP4 0.0.0.0".to_owned(),
-        )]);
+        .and_attribute(Attribute::value("rtcp", "9 IN IP4 0.0.0.0"));
+
         let expected = "m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126\r\na=rtcp:9 IN IP4 0.0.0.0\r\n";
         let actual = media_description.to_string();
         assert_eq!(expected, actual);
@@ -299,10 +302,7 @@ mod tests {
             protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
             format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
         })
-        .with_attributes(vec![Attribute::Value(
-            "rtcp".to_owned(),
-            "9 IN IP4 0.0.0.0".to_owned(),
-        )]);
+        .and_attribute(Attribute::value("rtcp", "9 IN IP4 0.0.0.0"));
 
         let actual = media_description(input).unwrap().1;
         assert_eq!(expected, actual);
