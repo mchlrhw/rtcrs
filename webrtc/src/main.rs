@@ -1,10 +1,21 @@
 use env_logger;
-use log::info;
+use log::debug;
+use pnet::datalink;
 
 use sdp;
 
 fn main() {
     env_logger::init();
+
+    let interfaces: Vec<_> = datalink::interfaces()
+        .into_iter()
+        .filter(|i| i.is_up() && !i.is_loopback())
+        .flat_map(|i| i.ips)
+        .filter(|a| a.is_ipv4())
+        .map(|a| a.ip())
+        .collect();
+
+    debug!("{:?}", interfaces);
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
         typ: sdp::MediaType::Video,
@@ -67,5 +78,5 @@ fn main() {
         ],
     ).and_media_description(video_description);
 
-    info!("{:?}", session_description);
+    debug!("{:?}", session_description);
 }
