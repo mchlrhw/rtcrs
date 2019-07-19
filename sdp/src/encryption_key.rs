@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -17,10 +19,35 @@ pub enum RetrievalMethod {
     URI,
 }
 
+impl fmt::Display for RetrievalMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RetrievalMethod::Base64 => write!(f, "base64"),
+            RetrievalMethod::Clear => write!(f, "clear"),
+            RetrievalMethod::Prompt => write!(f, "prompt"),
+            RetrievalMethod::URI => write!(f, "uri"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct EncryptionKey {
     pub method: RetrievalMethod,
     pub data: Option<String>,
+}
+
+impl fmt::Display for EncryptionKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "k={}{}\r\n",
+            self.method,
+            match &self.data {
+                Some(s) => format!(":{}", s),
+                None => "".to_owned(),
+            },
+        )
+    }
 }
 
 // k=<method>
@@ -51,24 +78,51 @@ pub fn encryption_key(input: Span) -> IResult<Span, EncryptionKey> {
     Ok((remainder, encryption_key))
 }
 
-#[test]
-fn test_encryption_key_with_data() {
-    let input = Span::new("k=clear:encryption_key\r\n");
-    let expected = EncryptionKey {
-        method: RetrievalMethod::Clear,
-        data: Some("encryption_key".to_owned()),
-    };
-    let actual = encryption_key(input).unwrap().1;
-    assert_eq!(expected, actual);
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_encryption_key_without_data() {
-    let input = Span::new("k=prompt\r\n");
-    let expected = EncryptionKey {
-        method: RetrievalMethod::Prompt,
-        data: None,
-    };
-    let actual = encryption_key(input).unwrap().1;
-    assert_eq!(expected, actual);
+    #[test]
+    fn display_encryption_key_with_data() {
+        let encryption_key = EncryptionKey {
+            method: RetrievalMethod::Clear,
+            data: Some("encryption_key".to_owned()),
+        };
+        let expected = "k=clear:encryption_key\r\n";
+        let actual = encryption_key.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn display_encryption_key_without_data() {
+        let encryption_key = EncryptionKey {
+            method: RetrievalMethod::Prompt,
+            data: None,
+        };
+        let expected = "k=prompt\r\n";
+        let actual = encryption_key.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_encryption_key_with_data() {
+        let input = Span::new("k=clear:encryption_key\r\n");
+        let expected = EncryptionKey {
+            method: RetrievalMethod::Clear,
+            data: Some("encryption_key".to_owned()),
+        };
+        let actual = encryption_key(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_encryption_key_without_data() {
+        let input = Span::new("k=prompt\r\n");
+        let expected = EncryptionKey {
+            method: RetrievalMethod::Prompt,
+            data: None,
+        };
+        let actual = encryption_key(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
 }

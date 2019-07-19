@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, line_ending},
@@ -13,6 +15,12 @@ use crate::Span;
 pub struct Timing {
     pub start_time: u64,
     pub stop_time: u64,
+}
+
+impl fmt::Display for Timing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "t={} {}\r\n", self.start_time, self.stop_time)
+    }
 }
 
 // t=<start-time> <stop-time>
@@ -38,22 +46,25 @@ pub fn timing(input: Span) -> IResult<Span, Timing> {
     Ok((remainder, timing))
 }
 
-#[test]
-fn test_timing() {
-    let input = Span::new("t=0 0\r\n");
-    let expected = Timing {
-        start_time: 0,
-        stop_time: 0,
-    };
-    let actual = timing(input).unwrap().1;
-    assert_eq!(expected, actual);
-}
-
 #[derive(Debug, PartialEq)]
 pub struct Repeat {
     pub interval: u64,
     pub active_duration: u64,
     pub offsets: Vec<u64>,
+}
+
+impl fmt::Display for Repeat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut offsets_string = "".to_owned();
+        for offset in &self.offsets {
+            offsets_string += &format!(" {}", offset);
+        }
+        write!(
+            f,
+            "r={} {}{}\r\n",
+            self.interval, self.active_duration, offsets_string
+        )
+    }
 }
 
 fn offset(input: Span) -> IResult<Span, u64> {
@@ -92,19 +103,6 @@ pub fn repeat(input: Span) -> IResult<Span, Repeat> {
     Ok((remainder, repeat))
 }
 
-#[test]
-#[allow(clippy::unreadable_literal)]
-fn test_repeat() {
-    let input = Span::new("r=604800 3600 0 90000\r\n");
-    let expected = Repeat {
-        interval: 604800,
-        active_duration: 3600,
-        offsets: vec![0, 90000],
-    };
-    let actual = repeat(input).unwrap().1;
-    assert_eq!(expected, actual);
-}
-
 #[derive(Debug, PartialEq)]
 pub struct TimeDescription {
     pub timing: Timing,
@@ -112,11 +110,37 @@ pub struct TimeDescription {
 }
 
 impl TimeDescription {
-    fn from_tuple(args: (Timing, Vec<Repeat>)) -> Self {
+    pub fn base(timing: Timing) -> Self {
+        Self {
+            timing,
+            repeat_times: vec![],
+        }
+    }
+
+    pub fn with_repeat_times(mut self, repeat_times: Vec<Repeat>) -> Self {
+        self.repeat_times = repeat_times;
+        self
+    }
+}
+
+type TimeDescriptionArgs = (Timing, Vec<Repeat>);
+
+impl TimeDescription {
+    fn from_tuple(args: TimeDescriptionArgs) -> Self {
         Self {
             timing: args.0,
             repeat_times: args.1,
         }
+    }
+}
+
+impl fmt::Display for TimeDescription {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut repeat_times_string = "".to_owned();
+        for repeat_time in &self.repeat_times {
+            repeat_times_string += &repeat_time.to_string();
+        }
+        write!(f, "{}{}", self.timing, repeat_times_string)
     }
 }
 
@@ -127,36 +151,108 @@ pub fn time_description(input: Span) -> IResult<Span, TimeDescription> {
     map(tuple((timing, many0(repeat))), TimeDescription::from_tuple)(input)
 }
 
-#[test]
+#[cfg(test)]
 #[allow(clippy::unreadable_literal)]
-fn test_time_description() {
-    let input = Span::new("t=3034423619 3042462419\r\n");
-    let expected = TimeDescription {
-        timing: Timing {
-            start_time: 3034423619,
-            stop_time: 3042462419,
-        },
-        repeat_times: vec![],
-    };
-    let actual = time_description(input).unwrap().1;
-    assert_eq!(expected, actual);
-}
+mod tests {
+    use super::*;
 
-#[test]
-#[allow(clippy::unreadable_literal)]
-fn test_time_description_with_repeat_times() {
-    let input = Span::new("t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n");
-    let expected = TimeDescription {
-        timing: Timing {
-            start_time: 3034423619,
-            stop_time: 3042462419,
-        },
-        repeat_times: vec![Repeat {
+    #[test]
+    fn display_timing() {
+        let timing = Timing {
+            start_time: 0,
+            stop_time: 0,
+        };
+        let expected = "t=0 0\r\n";
+        let actual = timing.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_timing() {
+        let input = Span::new("t=0 0\r\n");
+        let expected = Timing {
+            start_time: 0,
+            stop_time: 0,
+        };
+        let actual = timing(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn display_repeat() {
+        let repeat = Repeat {
             interval: 604800,
             active_duration: 3600,
             offsets: vec![0, 90000],
-        }],
-    };
-    let actual = time_description(input).unwrap().1;
-    assert_eq!(expected, actual);
+        };
+        let expected = "r=604800 3600 0 90000\r\n";
+        let actual = repeat.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_repeat() {
+        let input = Span::new("r=604800 3600 0 90000\r\n");
+        let expected = Repeat {
+            interval: 604800,
+            active_duration: 3600,
+            offsets: vec![0, 90000],
+        };
+        let actual = repeat(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn display_time_description() {
+        let time_description = TimeDescription::base(Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        });
+        let expected = "t=3034423619 3042462419\r\n";
+        let actual = time_description.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn display_time_description_with_repeat_times() {
+        let time_description = TimeDescription::base(Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        })
+        .with_repeat_times(vec![Repeat {
+            interval: 604800,
+            active_duration: 3600,
+            offsets: vec![0, 90000],
+        }]);
+        let expected = "t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n";
+        let actual = time_description.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_time_description() {
+        let input = Span::new("t=3034423619 3042462419\r\n");
+        let expected = TimeDescription::base(Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        });
+        let actual = time_description(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_time_description_with_repeat_times() {
+        let input = Span::new("t=3034423619 3042462419\r\nr=604800 3600 0 90000\r\n");
+        let expected = TimeDescription::base(Timing {
+            start_time: 3034423619,
+            stop_time: 3042462419,
+        })
+        .with_repeat_times(vec![Repeat {
+            interval: 604800,
+            active_duration: 3600,
+            offsets: vec![0, 90000],
+        }]);
+        let actual = time_description(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
 }

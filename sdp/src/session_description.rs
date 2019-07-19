@@ -1,3 +1,5 @@
+use std::fmt;
+
 use std::str::FromStr;
 
 use nom::{
@@ -43,6 +45,47 @@ pub struct SessionDescription {
     pub media_descriptions: Vec<MediaDescription>,
 }
 
+impl SessionDescription {
+    pub fn base(
+        version: Version,
+        origin: Origin,
+        session_name: SessionName,
+        time_description: TimeDescription,
+    ) -> Self {
+        Self {
+            version,
+            origin,
+            session_name,
+            session_information: None,
+            uri: None,
+            email_addresses: vec![],
+            phone_numbers: vec![],
+            connection: None,
+            bandwidths: vec![],
+            time_description,
+            time_zone: None,
+            encryption_key: None,
+            attributes: vec![],
+            media_descriptions: vec![],
+        }
+    }
+
+    pub fn with_connection(mut self, connection: Connection) -> Self {
+        self.connection = Some(connection);
+        self
+    }
+
+    pub fn with_attributes(mut self, attributes: Vec<Attribute>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    pub fn with_media_descriptions(mut self, media_descriptions: Vec<MediaDescription>) -> Self {
+        self.media_descriptions = media_descriptions;
+        self
+    }
+}
+
 type SessionDescriptionArgs = (
     Version,
     Origin,
@@ -78,6 +121,79 @@ impl SessionDescription {
             attributes: args.12,
             media_descriptions: args.13,
         }
+    }
+}
+
+impl fmt::Display for SessionDescription {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let session_information_string = match &self.session_information {
+            Some(s) => s.to_string(),
+            None => "".to_owned(),
+        };
+
+        let uri_string = match &self.uri {
+            Some(u) => u.to_string(),
+            None => "".to_owned(),
+        };
+
+        let mut email_addresses_string = "".to_owned();
+        for email_address in &self.email_addresses {
+            email_addresses_string += &email_address.to_string();
+        }
+
+        let mut phone_numbers_string = "".to_owned();
+        for phone_number in &self.phone_numbers {
+            phone_numbers_string += &phone_number.to_string();
+        }
+
+        let connection_string = match &self.connection {
+            Some(c) => c.to_string(),
+            None => "".to_owned(),
+        };
+
+        let mut bandwidths_string = "".to_owned();
+        for bandwidth in &self.bandwidths {
+            bandwidths_string += &bandwidth.to_string();
+        }
+
+        let time_zone_string = match &self.time_zone {
+            Some(t) => t.to_string(),
+            None => "".to_owned(),
+        };
+
+        let encryption_key_string = match &self.encryption_key {
+            Some(e) => e.to_string(),
+            None => "".to_owned(),
+        };
+
+        let mut attributes_string = "".to_owned();
+        for attribute in &self.attributes {
+            attributes_string += &attribute.to_string();
+        }
+
+        let mut media_descriptions_string = "".to_owned();
+        for media_description in &self.media_descriptions {
+            media_descriptions_string += &media_description.to_string();
+        }
+
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+            self.version,
+            self.origin,
+            self.session_name,
+            session_information_string,
+            uri_string,
+            email_addresses_string,
+            phone_numbers_string,
+            connection_string,
+            bandwidths_string,
+            self.time_description,
+            time_zone_string,
+            encryption_key_string,
+            attributes_string,
+            media_descriptions_string,
+        )
     }
 }
 
@@ -131,6 +247,7 @@ impl FromStr for SessionDescription {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)]
 mod tests {
     use failure::Error;
 
@@ -141,7 +258,6 @@ mod tests {
     };
 
     #[test]
-    #[allow(clippy::unreadable_literal)]
     fn test_from_str() -> Result<(), Error> {
         let sdp = r#"v=0
 o=- 1433832402044130222 3 IN IP4 127.0.0.1
@@ -155,9 +271,9 @@ m=audio 49170 RTP/AVP 0
 m=video 51372 RTP/AVP 99
 a=rtpmap:99 h263-1998/90000
 "#;
-        let expected = SessionDescription {
-            version: Version(0),
-            origin: Origin {
+        let expected = SessionDescription::base(
+            Version(0),
+            Origin {
                 username: "-".to_owned(),
                 session_id: 1433832402044130222,
                 session_version: 3,
@@ -165,63 +281,40 @@ a=rtpmap:99 h263-1998/90000
                 address_type: "IP4".to_owned(),
                 unicast_address: "127.0.0.1".to_owned(),
             },
-            session_name: SessionName("-".to_owned()),
-            session_information: None,
-            uri: None,
-            email_addresses: vec![],
-            phone_numbers: vec![],
-            connection: Some(Connection {
-                network_type: "IN".to_owned(),
-                address_type: "IP4".to_owned(),
-                connection_address: "127.0.0.1".to_owned(),
+            SessionName("-".to_owned()),
+            TimeDescription::base(Timing {
+                start_time: 0,
+                stop_time: 0,
             }),
-            bandwidths: vec![],
-            time_description: TimeDescription {
-                timing: Timing {
-                    start_time: 0,
-                    stop_time: 0,
-                },
-                repeat_times: vec![],
-            },
-            time_zone: None,
-            encryption_key: None,
-            attributes: vec![
-                Attribute::Property("recvonly".to_owned()),
-                Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
-                Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned()),
-            ],
-            media_descriptions: vec![
-                MediaDescription {
-                    media: Media {
-                        typ: MediaType::Audio,
-                        port: 49170,
-                        protocol: "RTP/AVP".to_owned(),
-                        format: "0".to_owned(),
-                    },
-                    title: None,
-                    connection: None,
-                    bandwidths: vec![],
-                    encryption_key: None,
-                    attributes: vec![],
-                },
-                MediaDescription {
-                    media: Media {
-                        typ: MediaType::Video,
-                        port: 51372,
-                        protocol: "RTP/AVP".to_owned(),
-                        format: "99".to_owned(),
-                    },
-                    title: None,
-                    connection: None,
-                    bandwidths: vec![],
-                    encryption_key: None,
-                    attributes: vec![Attribute::Value(
-                        "rtpmap".to_owned(),
-                        "99 h263-1998/90000".to_owned(),
-                    )],
-                },
-            ],
-        };
+        )
+        .with_connection(Connection {
+            network_type: "IN".to_owned(),
+            address_type: "IP4".to_owned(),
+            connection_address: "127.0.0.1".to_owned(),
+        })
+        .with_attributes(vec![
+            Attribute::Property("recvonly".to_owned()),
+            Attribute::Value("group".to_owned(), "BUNDLE 0 1".to_owned()),
+            Attribute::Value("msid-semantic".to_owned(), " WMS stream".to_owned()),
+        ])
+        .with_media_descriptions(vec![
+            MediaDescription::base(Media {
+                typ: MediaType::Audio,
+                port: 49170,
+                protocol: "RTP/AVP".to_owned(),
+                format: "0".to_owned(),
+            }),
+            MediaDescription::base(Media {
+                typ: MediaType::Video,
+                port: 51372,
+                protocol: "RTP/AVP".to_owned(),
+                format: "99".to_owned(),
+            })
+            .with_attributes(vec![Attribute::Value(
+                "rtpmap".to_owned(),
+                "99 h263-1998/90000".to_owned(),
+            )]),
+        ]);
         let actual = SessionDescription::from_str(sdp)?;
         assert_eq!(expected, actual);
         Ok(())

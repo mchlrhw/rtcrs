@@ -19,7 +19,14 @@ mod version;
 use failure::Fail;
 use nom_locate::LocatedSpan;
 
+pub use attribute::Attribute;
+pub use connection::Connection;
+pub use media_description::{Media, MediaDescription, MediaType};
+pub use origin::Origin;
 pub use session_description::SessionDescription;
+pub use session_name::SessionName;
+pub use time_description::{TimeDescription, Timing};
+pub use version::Version;
 
 type Span<'a> = LocatedSpan<&'a str>;
 

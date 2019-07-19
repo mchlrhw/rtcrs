@@ -1,0 +1,10 @@
+[package]
+name = "webrtc"
+version = "0.1.0"
+authors = ["mchlrhw <4028654+mchlrhw@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+env_logger = "0.6.2"
+log = "0.4.7"
+sdp = { path = "../sdp" }
