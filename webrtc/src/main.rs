@@ -5,10 +5,22 @@ use env_logger;
 use failure::Error;
 use log::{debug, trace};
 use pnet::datalink;
+use rand::{self, seq::SliceRandom};
 
 use sdp;
 
 const MTU: usize = 1500;
+const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
+
+fn rand_ice_string(length: usize) -> String {
+    let mut rng = &mut rand::thread_rng();
+    let random_chars: Vec<u8> = ICE_CHARS
+        .choose_multiple(&mut rng, length)
+        .cloned()
+        .collect();
+    // SAFE: due to the fact that ICE_CHARS is entirely ASCII
+    String::from_utf8(random_chars).unwrap()
+}
 
 fn udp_listener(address: IpAddr) -> Result<SocketAddr, Error> {
     debug!("Starting UDP listener on {}", address);
@@ -42,12 +54,17 @@ fn main() {
         .map(|a| a.ip())
         .collect();
 
+    let mut local_candidates = vec![];
     for interface in interfaces {
         match udp_listener(interface) {
-            Ok(_) => debug!("Bind succeeded"),
-            Err(_) => debug!("Bind failed"),
+            Ok(candidate) => local_candidates.push(candidate),
+            Err(_) => continue,
         }
     }
+    debug!("Local candidates: {:?}", local_candidates);
+
+    let ice_pwd = rand_ice_string(22);
+    let ice_ufrag = rand_ice_string(4);
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
         typ: sdp::MediaType::Video,
@@ -77,8 +94,8 @@ fn main() {
         sdp::Attribute::value("setup", "active"),
         sdp::Attribute::value("mid", "video"),
         sdp::Attribute::property("recvonly"),
-        sdp::Attribute::value("ice-ufrag", "YKBo"),
-        sdp::Attribute::value("ice-pwd", "TTlUG2PZn1bXg4vzBzVBHnTz"),
+        sdp::Attribute::value("ice-ufrag", &ice_ufrag),
+        sdp::Attribute::value("ice-pwd", &ice_pwd),
         sdp::Attribute::value("ice-options", "renomination"),
         sdp::Attribute::property("rtcp-mux"),
         sdp::Attribute::property("rtcp-rsize"),
