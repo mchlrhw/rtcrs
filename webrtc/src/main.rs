@@ -1,8 +1,35 @@
+use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::thread;
+
 use env_logger;
-use log::debug;
+use failure::Error;
+use log::{debug, trace};
 use pnet::datalink;
 
 use sdp;
+
+const MTU: usize = 1500;
+
+fn udp_listener(address: IpAddr) -> Result<SocketAddr, Error> {
+    debug!("Starting UDP listener on {}", address);
+
+    let socket = UdpSocket::bind(format!("{}:0", address))?;
+    let local_addr = socket.local_addr()?;
+    trace!(
+        "Socket bound on {} at {}",
+        local_addr.ip(),
+        local_addr.port()
+    );
+
+    thread::spawn(move || {
+        let mut buf = [0; MTU];
+        // TODO: remove unwrap
+        let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
+        trace!("Received {} bytes from {}", bytes_rcvd, src_addr);
+    });
+
+    Ok(local_addr)
+}
 
 fn main() {
     env_logger::init();
@@ -15,7 +42,12 @@ fn main() {
         .map(|a| a.ip())
         .collect();
 
-    debug!("{:?}", interfaces);
+    for interface in interfaces {
+        match udp_listener(interface) {
+            Ok(_) => debug!("Bind succeeded"),
+            Err(_) => debug!("Bind failed"),
+        }
+    }
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
         typ: sdp::MediaType::Video,
@@ -29,7 +61,7 @@ fn main() {
         connection_address: "127.0.0.1".to_owned(),
     })
     .with_attributes(vec![
-        sdp::Attribute::value("a=rtpmap", "96 VP8/90000"),
+        sdp::Attribute::value("rtpmap", "96 VP8/90000"),
         sdp::Attribute::value("rtpmap", "97 rtx/90000"),
         sdp::Attribute::value("fmtp", "97 apt=96"),
         sdp::Attribute::value("ftcp-fb", "96 goog-remb"),
