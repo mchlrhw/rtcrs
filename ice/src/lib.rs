@@ -8,6 +8,7 @@ use pnet::datalink;
 use rand::{self, seq::SliceRandom};
 
 use sdp;
+use stun;
 
 const MTU: usize = 1500;
 const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
@@ -38,6 +39,8 @@ fn udp_listener(address: IpAddr) -> Result<(SocketAddr, JoinHandle<()>), Error> 
         trace!("Receiving on {:?}", socket.local_addr());
         let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
         trace!("Received {} bytes from {}", bytes_rcvd, src_addr);
+        let (_, header) = stun::header(&buf).unwrap();
+        debug!("STUN: {:?}", header)
     });
 
     Ok((local_addr, handle))

@@ -12,3 +12,4 @@ log = "0.4"
 rand = "0.7"
 pnet = "0.22"
 sdp = { path = "../sdp" }
+stun = { path = "../stun" }
