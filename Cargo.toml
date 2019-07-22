@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "ice",
     "sdp",
     "stun",
     "webrtc",

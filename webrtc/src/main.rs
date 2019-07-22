@@ -1,107 +1,18 @@
-use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::thread::{self, JoinHandle};
-
 use env_logger;
-use failure::Error;
-use log::{debug, trace};
-use pnet::datalink;
-use rand::{self, seq::SliceRandom};
 
+use ice;
 use sdp;
-
-const MTU: usize = 1500;
-const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
-
-fn rand_ice_string(length: usize) -> String {
-    let mut rng = &mut rand::thread_rng();
-    let random_chars: Vec<u8> = ICE_CHARS
-        .choose_multiple(&mut rng, length)
-        .cloned()
-        .collect();
-    // SAFE: due to the fact that ICE_CHARS is entirely ASCII
-    String::from_utf8(random_chars).unwrap()
-}
-
-fn udp_listener(address: IpAddr) -> Result<(SocketAddr, JoinHandle<()>), Error> {
-    debug!("Starting UDP listener on {}", address);
-
-    let socket = UdpSocket::bind(format!("{}:0", address))?;
-    let local_addr = socket.local_addr()?;
-    trace!(
-        "Socket bound on {} at {}",
-        local_addr.ip(),
-        local_addr.port()
-    );
-
-    let handle = thread::spawn(move || {
-        let mut buf = [0; MTU];
-        trace!("Receiving on {:?}", socket.local_addr());
-        let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
-        trace!("Received {} bytes from {}", bytes_rcvd, src_addr);
-    });
-
-    Ok((local_addr, handle))
-}
-
-fn encode_as_sdp(foundation: usize, candidate: SocketAddr) -> sdp::Attribute {
-    let component_id = 1; // RTP == 1
-
-    let transport = "udp";
-
-    let ip_precedence = 65535; // IPv4 only
-    let priority = ((2_i64.pow(24)) * 126) + ((2_i64.pow(8)) * ip_precedence) + 256 - component_id;
-
-    let v = format!(
-        "{} {} {} {} {} {} typ host",
-        foundation,
-        component_id,
-        transport,
-        priority,
-        candidate.ip(),
-        candidate.port(),
-    );
-    sdp::Attribute::value("candidate", &v)
-}
-
-// TODO: create Candidate struct and return that instead of String
-fn gather_candidates() -> (Vec<sdp::Attribute>, Vec<JoinHandle<()>>) {
-    let interfaces: Vec<_> = datalink::interfaces()
-        .into_iter()
-        .filter(|i| i.is_up() && !i.is_loopback())
-        .flat_map(|i| i.ips)
-        .filter(|a| a.is_ipv4())
-        .map(|a| a.ip())
-        .collect();
-
-    let mut local_candidates = vec![];
-    let mut join_handles = vec![];
-    for interface in interfaces {
-        match udp_listener(interface) {
-            Ok((candidate, handle)) => {
-                local_candidates.push(candidate);
-                join_handles.push(handle);
-            }
-            Err(_) => continue,
-        }
-    }
-
-    let attributes = local_candidates
-        .into_iter()
-        .enumerate()
-        .map(|(i, v)| encode_as_sdp(i, v))
-        .collect();
-
-    (attributes, join_handles)
-}
 
 fn main() {
     env_logger::init();
 
-    let ice_pwd = rand_ice_string(22);
-    let ice_ufrag = rand_ice_string(4);
+    let mut ice_agent = ice::Agent::new();
 
-    let (mut candidates, join_handles) = gather_candidates();
-    debug!("Local candidates: {:?}", candidates);
+    let ice_ufrag = ice_agent.username();
+    let ice_pwd = ice_agent.password();
+
+    ice_agent.gather();
+    let mut candidates = ice_agent.candidate_attributes();
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
         typ: sdp::MediaType::Video,
@@ -170,7 +81,5 @@ fn main() {
 
     print!("{}", session_description);
 
-    for handle in join_handles {
-        handle.join().unwrap();
-    }
+    ice_agent.wait_till_completion();
 }
