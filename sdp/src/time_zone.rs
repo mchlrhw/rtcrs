@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -14,6 +16,19 @@ use crate::Span;
 pub struct Adjustment {
     pub time: u64,
     pub offset: i64,
+}
+
+impl fmt::Display for Adjustment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let offset_hours = self.offset / 3600;
+        let units = if offset_hours == 0 {
+            "".to_owned()
+        } else {
+            "h".to_owned()
+        };
+        let offset_string = format!("{}{}", offset_hours, units);
+        write!(f, "{} {}", self.time, offset_string)
+    }
 }
 
 fn offset(input: Span) -> IResult<Span, i64> {
@@ -57,6 +72,23 @@ pub struct TimeZone {
     pub adjustments: Vec<Adjustment>,
 }
 
+impl fmt::Display for TimeZone {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.adjustments.is_empty() {
+            return Err(fmt::Error);
+        }
+
+        let mut adjustments_string = self.adjustments[0].to_string();
+        if self.adjustments.len() > 1 {
+            for adjustment in &self.adjustments[1..] {
+                adjustments_string += &format!(" {}", adjustment);
+            }
+        }
+
+        write!(f, "z={}\r\n", adjustments_string)
+    }
+}
+
 // z=<adjustment time> <offset> <adjustment time> <offset> ....
 // https://tools.ietf.org/html/rfc4566#section-5.11
 pub fn time_zone(input: Span) -> IResult<Span, TimeZone> {
@@ -70,22 +102,46 @@ pub fn time_zone(input: Span) -> IResult<Span, TimeZone> {
     Ok((remainder, time_zone))
 }
 
-#[test]
+#[cfg(test)]
 #[allow(clippy::unreadable_literal)]
-fn test_time_zone() {
-    let input = Span::new("z=2882844526 -1h 2898848070 0\r\n");
-    let expected = TimeZone {
-        adjustments: vec![
-            Adjustment {
-                time: 2882844526,
-                offset: -3600,
-            },
-            Adjustment {
-                time: 2898848070,
-                offset: 0,
-            },
-        ],
-    };
-    let actual = time_zone(input).unwrap().1;
-    assert_eq!(expected, actual);
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_time_zone() {
+        let time_zone = TimeZone {
+            adjustments: vec![
+                Adjustment {
+                    time: 2882844526,
+                    offset: -3600,
+                },
+                Adjustment {
+                    time: 2898848070,
+                    offset: 0,
+                },
+            ],
+        };
+        let expected = "z=2882844526 -1h 2898848070 0\r\n";
+        let actual = time_zone.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_time_zone() {
+        let input = Span::new("z=2882844526 -1h 2898848070 0\r\n");
+        let expected = TimeZone {
+            adjustments: vec![
+                Adjustment {
+                    time: 2882844526,
+                    offset: -3600,
+                },
+                Adjustment {
+                    time: 2898848070,
+                    offset: 0,
+                },
+            ],
+        };
+        let actual = time_zone(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
 }

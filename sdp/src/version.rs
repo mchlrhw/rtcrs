@@ -18,14 +18,6 @@ impl fmt::Display for Version {
     }
 }
 
-#[test]
-fn test_serialize_version() {
-    let version = Version(0);
-    let expected = "v=0\r\n";
-    let actual = version.to_string();
-    assert_eq!(expected, actual);
-}
-
 // v=0
 // https://tools.ietf.org/html/rfc4566#section-5.1
 pub fn version(input: Span) -> IResult<Span, Version> {
@@ -38,10 +30,23 @@ pub fn version(input: Span) -> IResult<Span, Version> {
     Ok((remainder, version))
 }
 
-#[test]
-fn test_version() {
-    let input = Span::new("v=0\r\n");
-    let expected = Version(0);
-    let actual = version(input).unwrap().1;
-    assert_eq!(expected, actual);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_version() {
+        let version = Version(0);
+        let expected = "v=0\r\n";
+        let actual = version.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_version() {
+        let input = Span::new("v=0\r\n");
+        let expected = Version(0);
+        let actual = version(input).unwrap().1;
+        assert_eq!(expected, actual);
+    }
 }
