@@ -79,7 +79,9 @@ fn main() {
         ],
     ).and_media_description(video_description);
 
-    print!("{}", session_description);
+    let sdp_string = session_description.to_string().escape_default().to_string();
+    let answer = format!(r#"{{"type": "answer", "sdp": "{}"}}"#, sdp_string);
+    println!("{}", base64::encode(&answer));
 
     ice_agent.wait_till_completion();
 }
