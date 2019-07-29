@@ -23,24 +23,72 @@ fn rand_ice_string(length: usize) -> String {
     String::from_utf8(random_chars).unwrap()
 }
 
-fn udp_listener(address: IpAddr) -> Result<(SocketAddr, JoinHandle<()>), Error> {
+fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<()>), Error> {
     debug!("Starting UDP listener on {}", address);
 
     let socket = UdpSocket::bind(format!("{}:0", address))?;
-    let local_addr = socket.local_addr()?;
-    trace!(
-        "Socket bound on {} at {}",
-        local_addr.ip(),
-        local_addr.port()
-    );
+    let local_addr = socket.local_addr().unwrap();
+    debug!("Socket bound to {}", local_addr);
 
     let handle = thread::spawn(move || {
+        let local_addr = socket.local_addr().unwrap();
         let mut buf = [0; MTU];
-        trace!("Receiving on {:?}", socket.local_addr());
-        let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
-        trace!("Received {} bytes from {}", bytes_rcvd, src_addr);
-        let (_, header) = stun::header(&buf).unwrap();
-        debug!("STUN: {:?}", header)
+        loop {
+            let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
+            trace!(
+                "Received {} bytes from {} on {}: {:02X?}",
+                bytes_rcvd,
+                src_addr,
+                local_addr,
+                buf[..bytes_rcvd].to_vec()
+            );
+
+            let (_, message) = stun::message(&buf[..bytes_rcvd]).unwrap();
+            debug!("Received connectivity check: {:?}", message);
+
+            if message.header.method != stun::Method::Binding
+                && message.header.class != stun::Class::Request
+            {
+                continue;
+            }
+
+            let mut maybe_username = None;
+            for attribute in message.attributes {
+                match attribute {
+                    stun::Attribute::Username(u) => {
+                        maybe_username = Some(u);
+                        break;
+                    }
+                    _ => continue,
+                }
+            }
+
+            let username = match maybe_username {
+                Some(u) => u,
+                None => continue,
+            };
+
+            let reply = stun::Message::base(stun::Header {
+                class: stun::Class::Success,
+                method: stun::Method::Binding,
+                length: 0,
+                transaction_id: message.header.transaction_id,
+            })
+            .with_attributes(vec![
+                stun::Attribute::Username(username),
+                stun::Attribute::XorMappedAddress {
+                    address: src_addr.ip(),
+                    port: src_addr.port(),
+                },
+            ])
+            .with_message_integrity(key.as_ref())
+            .with_fingerprint()
+            .to_bytes();
+
+            trace!("Sending reply: {:02X?}", reply.to_vec());
+
+            socket.send_to(&reply, src_addr).unwrap();
+        }
     });
 
     Ok((local_addr, handle))
@@ -72,7 +120,7 @@ impl Default for Agent {
 
 impl Agent {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     pub fn username(&self) -> String {
@@ -93,13 +141,14 @@ impl Agent {
             .collect();
 
         for interface in interfaces {
-            match udp_listener(interface) {
-                Ok((address, handle)) => {
-                    let candidate = Candidate { address };
-                    self.candidates.push(candidate);
-                    self.thread_handles.push(handle);
-                }
-                Err(_) => warn!("Unable to gather local candidate on {}", interface),
+            if let Ok((address, handle)) = udp_listener(interface, self.password.clone()) {
+                let candidate = Candidate { address };
+                self.candidates.push(candidate);
+                self.thread_handles.push(handle);
+
+                break; // we only want one for now
+            } else {
+                warn!("Unable to gather local candidate on {}", interface);
             }
         }
     }
@@ -126,7 +175,7 @@ fn encode_as_sdp(foundation: usize, candidate: SocketAddr) -> sdp::Attribute {
     let transport = "udp";
 
     let ip_precedence = 65535; // IPv4 only
-    let priority = ((2_i64.pow(24)) * 126) + ((2_i64.pow(8)) * ip_precedence) + 256 - component_id;
+    let priority = ((2_u64.pow(24)) * 126) + ((2_u64.pow(8)) * ip_precedence) + 256 - component_id;
 
     let v = format!(
         "{} {} {} {} {} {} typ host",
