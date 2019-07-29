@@ -3,6 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
 };
 
+use crc::crc32;
 use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
 use log::trace;
 use nom::{
@@ -19,6 +20,7 @@ use nom::{
 };
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
+const FINGERPRINT_COOKIE: u32 = 0x_5354_554E;
 
 #[derive(Debug, PartialEq)]
 pub enum Method {
@@ -158,10 +160,26 @@ pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
 #[derive(Debug, PartialEq)]
 pub enum Attribute {
     ComprehensionOptional(Vec<u8>),
+    Fingerprint(u32),
     MessageIntegrity(Vec<u8>),
     Priority(u32),
     Username(String),
     XorMappedAddress { address: IpAddr, port: u16 },
+}
+
+fn fingerprint_to_bytes(checksum: u32) -> Vec<u8> {
+    let checksum = checksum.to_be_bytes();
+    let length: u16 = checksum.len().try_into().unwrap();
+    let length_field = length.to_be_bytes();
+
+    let typ: u16 = 0x_8028;
+    let type_field = typ.to_be_bytes();
+
+    let mut bytes = type_field.to_vec();
+    bytes.extend_from_slice(&length_field);
+    bytes.extend_from_slice(&checksum);
+
+    bytes
 }
 
 fn message_integrity_to_bytes(code: &[u8]) -> Vec<u8> {
@@ -174,6 +192,22 @@ fn message_integrity_to_bytes(code: &[u8]) -> Vec<u8> {
     let mut bytes = type_field.to_vec();
     bytes.extend_from_slice(&length_field);
     bytes.extend_from_slice(&code);
+
+    bytes
+}
+
+fn username_to_bytes(username: String) -> Vec<u8> {
+    let value_field = username.as_bytes();
+
+    let length: u16 = value_field.len().try_into().unwrap();
+    let length_field = length.to_be_bytes();
+
+    let typ: u16 = 0x_0006;
+    let type_field = typ.to_be_bytes();
+
+    let mut bytes = type_field.to_vec();
+    bytes.extend_from_slice(&length_field);
+    bytes.extend_from_slice(value_field);
 
     bytes
 }
@@ -213,7 +247,9 @@ fn xor_mapped_address_to_bytes(address: &IpAddr, port: u16) -> Vec<u8> {
 impl Attribute {
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
+            Attribute::Fingerprint(checksum) => fingerprint_to_bytes(*checksum),
             Attribute::MessageIntegrity(code) => message_integrity_to_bytes(code),
+            Attribute::Username(username) => username_to_bytes(username.to_string()),
             Attribute::XorMappedAddress { address, port } => {
                 xor_mapped_address_to_bytes(address, *port)
             }
@@ -227,6 +263,15 @@ fn comprehension_optional(input: &[u8]) -> IResult<&[u8], Attribute> {
     let attribute = Attribute::ComprehensionOptional(value);
 
     Ok((&[], attribute))
+}
+
+fn fingerprint(input: &[u8]) -> IResult<&[u8], Attribute> {
+    let (input, remainder) = input.split_at(4);
+    let input: [u8; 4] = input.try_into().unwrap();
+    let value = u32::from_be_bytes(input);
+    let attribute = Attribute::Fingerprint(value);
+
+    Ok((remainder, attribute))
 }
 
 fn message_integrity(input: &[u8]) -> IResult<&[u8], Attribute> {
@@ -335,10 +380,11 @@ fn attribute(input: &[u8]) -> IResult<&[u8], Attribute> {
         0x_0020 => xor_mapped_address,
         0x_0024 => priority,
         // Comprehension-optional range (0x8000-0xFFFF)
-        0x_8000..=0x_FFFF => comprehension_optional,
+        0x_8000..=0x_8027 => comprehension_optional,
         // TODO: 0x_8022 => AttributeType::Software
         // TODO: 0x_8023 => AttributeType::AlternateServer
-        // TODO: 0x_8028 => AttributeType::Fingerprint
+        0x_8028 => fingerprint,
+        0x_8029..=0x_FFFF => comprehension_optional,
         // TODO: return Err here
         _ => unimplemented!(),
     };
@@ -368,16 +414,22 @@ pub fn message(input: &[u8]) -> IResult<&[u8], Message> {
     let (remainder, message) = map(tuple((header, many0(attribute))), Message::from_tuple)(input)?;
 
     // TODO: if MessageIntegrity in attributes, check input against it
+    // TODO: if Fingerprint in attributes, check input against it
 
     Ok((remainder, message))
 }
 
 impl Message {
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut message_bytes = self.header.to_bytes();
+        let mut attributes_bytes = vec![];
         for attribute in &self.attributes {
-            message_bytes.extend(attribute.to_bytes());
+            attributes_bytes.extend(attribute.to_bytes());
         }
+
+        let header_bytes = self.header.to_bytes();
+
+        let mut message_bytes = header_bytes;
+        message_bytes.extend(attributes_bytes);
 
         message_bytes
     }
@@ -392,16 +444,26 @@ impl Message {
     }
 
     pub fn with_attributes(mut self, attributes: Vec<Attribute>) -> Self {
+        for attribute in &self.attributes {
+            let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
+            self.header.length += attribute_length;
+        }
         self.attributes = attributes;
         self
     }
 
     pub fn and_attribute(mut self, attribute: Attribute) -> Self {
+        let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
+        self.header.length += attribute_length;
         self.attributes.push(attribute);
         self
     }
 
     pub fn with_message_integrity(mut self, key: &[u8]) -> Self {
+        // account for the message integrity attritibute itself:
+        // 20 for the HMAC and 4 for the attribute header
+        self.header.length += 24;
+
         let mut mac = Hmac::new(Sha1::new(), key);
         mac.input(&self.to_bytes());
         let code = mac.result().code().to_vec();
@@ -412,9 +474,18 @@ impl Message {
         self
     }
 
-    #[allow(unused_mut)]
     pub fn with_fingerprint(mut self) -> Self {
-        unimplemented!()
+        // account for the fingerprint attribute itself:
+        // 32 for the CRC and 4 for the attribute header
+        self.header.length += 36;
+
+        let checksum = crc32::checksum_ieee(&self.to_bytes());
+        let value = checksum ^ FINGERPRINT_COOKIE;
+
+        let attribute = Attribute::Fingerprint(value);
+        self.attributes.push(attribute);
+
+        self
     }
 }
 

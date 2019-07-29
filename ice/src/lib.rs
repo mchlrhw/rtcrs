@@ -52,19 +52,40 @@ fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<
                 continue;
             }
 
+            let mut maybe_username = None;
+            for attribute in message.attributes {
+                match attribute {
+                    stun::Attribute::Username(u) => {
+                        maybe_username = Some(u);
+                        break;
+                    }
+                    _ => continue,
+                }
+            }
+
+            let username = match maybe_username {
+                Some(u) => u,
+                None => continue,
+            };
+
             let reply = stun::Message::base(stun::Header {
                 class: stun::Class::Success,
                 method: stun::Method::Binding,
                 length: 0,
                 transaction_id: message.header.transaction_id,
             })
-            .and_attribute(stun::Attribute::XorMappedAddress {
-                address: local_addr.ip(),
-                port: local_addr.port(),
-            })
+            .with_attributes(vec![
+                stun::Attribute::Username(username),
+                stun::Attribute::XorMappedAddress {
+                    address: src_addr.ip(),
+                    port: src_addr.port(),
+                },
+            ])
             .with_message_integrity(key.as_ref())
-            //.with_fingerprint();
+            .with_fingerprint()
             .to_bytes();
+
+            trace!("Sending reply: {:02X?}", reply.to_vec());
 
             socket.send_to(&reply, src_addr).unwrap();
         }
@@ -124,6 +145,8 @@ impl Agent {
                 let candidate = Candidate { address };
                 self.candidates.push(candidate);
                 self.thread_handles.push(handle);
+
+                break; // we only want one for now
             } else {
                 warn!("Unable to gather local candidate on {}", interface);
             }
