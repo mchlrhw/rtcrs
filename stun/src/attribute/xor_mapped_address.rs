@@ -12,6 +12,7 @@ use crate::{
     attribute::Attribute,
 };
 
+#[derive(Debug, PartialEq)]
 struct XorMappedAddress {
     address: IpAddr,
     port: u16,
@@ -61,7 +62,7 @@ impl Attribute for XorMappedAddress {
 //         Figure 6: Format of XOR-MAPPED-ADDRESS Attribute
 //
 // https://tools.ietf.org/html/rfc5389#section-15.2
-fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], impl Attribute> {
     let (x_address_field, (mut family_field, x_port_field)) = tuple((be_u16, be_u16))(input)?;
 
     let port = x_port_field ^ (MAGIC_COOKIE >> 16) as u16;

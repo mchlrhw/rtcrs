@@ -6,6 +6,7 @@ use nom::{
 
 use crate::attribute::Attribute;
 
+#[derive(Debug, PartialEq)]
 struct Priority(u32);
 
 impl Attribute for Priority {
@@ -22,7 +23,7 @@ impl Attribute for Priority {
     }
 }
 
-fn priority(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn priority(input: &[u8]) -> IResult<&[u8], impl Attribute> {
     let (input, remainder) = input.split_at(4);
     let input: [u8; 4] = input.try_into().unwrap();
     let value = u32::from_be_bytes(input);

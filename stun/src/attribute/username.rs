@@ -6,6 +6,7 @@ use nom::{
 
 use crate::attribute::Attribute;
 
+#[derive(Debug, PartialEq)]
 struct Username(String);
 
 impl Attribute for Username {
@@ -22,7 +23,7 @@ impl Attribute for Username {
     }
 }
 
-fn username(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn username(input: &[u8]) -> IResult<&[u8], impl Attribute> {
     // TODO: check the input length is < 513
     // TODO: return Err here
     let value = String::from_utf8(input.to_vec()).unwrap();

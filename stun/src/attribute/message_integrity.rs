@@ -6,7 +6,8 @@ use nom::{
 
 use crate::attribute::Attribute;
 
-struct MessageIntegrity(Vec<u8>);
+#[derive(Debug, PartialEq)]
+pub struct MessageIntegrity(pub Vec<u8>);
 
 impl Attribute for MessageIntegrity {
     fn r#type(&self) -> u16 {
@@ -22,7 +23,7 @@ impl Attribute for MessageIntegrity {
     }
 }
 
-fn message_integrity(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn message_integrity(input: &[u8]) -> IResult<&[u8], impl Attribute> {
     let (input, remainder) = input.split_at(20);
     let attribute = MessageIntegrity(input.to_vec());
 

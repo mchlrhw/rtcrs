@@ -28,7 +28,7 @@ impl Attribute for ComprehensionOptional {
     }
 }
 
-fn comprehension_optional(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn comprehension_optional(input: &[u8]) -> IResult<&[u8], impl Attribute> {
     let value = input.to_vec();
     let attribute = ComprehensionOptional { value };
 
