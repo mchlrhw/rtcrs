@@ -21,7 +21,6 @@ use crate::attribute::{
 };
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
-const FINGERPRINT_COOKIE: u32 = 0x_5354_554E;
 
 #[derive(Debug, PartialEq)]
 pub enum Method {
@@ -237,9 +236,8 @@ impl Message {
 
     pub fn with_fingerprint(self) -> Self {
         let checksum = crc32::checksum_ieee(&self.to_bytes());
-        let value = checksum ^ FINGERPRINT_COOKIE;
 
-        let inner = Fingerprint(value);
+        let inner = Fingerprint::new(checksum);
         let attribute = Attribute::Fingerprint(inner);
 
         self.and_attribute(attribute)

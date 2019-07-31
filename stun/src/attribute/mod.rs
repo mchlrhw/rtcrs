@@ -99,6 +99,17 @@ impl Tlv for Attribute {
             Attribute::XorMappedAddress(inner) => inner.value(),
         }
     }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            Attribute::ComprehensionOptional(inner) => inner.to_bytes(),
+            Attribute::Fingerprint(inner) => inner.to_bytes(),
+            Attribute::MessageIntegrity(inner) => inner.to_bytes(),
+            Attribute::Priority(inner) => inner.to_bytes(),
+            Attribute::Username(inner) => inner.to_bytes(),
+            Attribute::XorMappedAddress(inner) => inner.to_bytes(),
+        }
+    }
 }
 
 //  0                   1                   2                   3
