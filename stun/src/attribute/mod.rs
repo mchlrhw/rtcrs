@@ -5,26 +5,25 @@ mod priority;
 mod username;
 mod xor_mapped_address;
 
+use std::net::IpAddr;
+
 use log::trace;
 use nom::{
-    combinator::all_consuming,
-    multi::length_data,
-    number::complete::be_u16,
-    sequence::tuple,
+    combinator::all_consuming, multi::length_data, number::complete::be_u16, sequence::tuple,
     IResult,
 };
 
 use crate::attribute::{
-    comprehension_optional::comprehension_optional,
-    fingerprint::fingerprint,
-    message_integrity::message_integrity,
-    priority::priority,
-    username::username,
-    xor_mapped_address::xor_mapped_address,
+    comprehension_optional::{comprehension_optional, ComprehensionOptional},
+    fingerprint::{fingerprint, Fingerprint},
+    message_integrity::{message_integrity, MessageIntegrity},
+    priority::{priority, Priority},
+    username::{username, Username},
+    xor_mapped_address::{xor_mapped_address, XorMappedAddress},
 };
 
-pub trait Attribute: std::fmt::Debug + std::cmp::PartialEq {
-    fn r#type(&self) -> u16;
+pub trait Tlv {
+    fn typ(&self) -> u16;
 
     fn length(&self) -> u16;
 
@@ -33,13 +32,72 @@ pub trait Attribute: std::fmt::Debug + std::cmp::PartialEq {
     fn to_bytes(&self) -> Vec<u8> {
         let value_field = self.value();
         let length_field = self.length().to_be_bytes();
-        let type_field = self.r#type().to_be_bytes();
+        let type_field = self.typ().to_be_bytes();
 
         let mut bytes = type_field.to_vec();
         bytes.extend_from_slice(&length_field);
         bytes.extend_from_slice(&value_field);
 
         bytes
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Attribute {
+    ComprehensionOptional(ComprehensionOptional),
+    Fingerprint(Fingerprint),
+    MessageIntegrity(MessageIntegrity),
+    Priority(Priority),
+    Username(Username),
+    XorMappedAddress(XorMappedAddress),
+}
+
+impl Attribute {
+    pub fn username(value: &str) -> Self {
+        let inner = Username::new(value);
+
+        Attribute::Username(inner)
+    }
+
+    pub fn xor_mapped_address(address: IpAddr, port: u16) -> Self {
+        let inner = XorMappedAddress::new(address, port);
+
+        Attribute::XorMappedAddress(inner)
+    }
+}
+
+impl Tlv for Attribute {
+    fn typ(&self) -> u16 {
+        match self {
+            Attribute::ComprehensionOptional(inner) => inner.typ(),
+            Attribute::Fingerprint(inner) => inner.typ(),
+            Attribute::MessageIntegrity(inner) => inner.typ(),
+            Attribute::Priority(inner) => inner.typ(),
+            Attribute::Username(inner) => inner.typ(),
+            Attribute::XorMappedAddress(inner) => inner.typ(),
+        }
+    }
+
+    fn length(&self) -> u16 {
+        match self {
+            Attribute::ComprehensionOptional(inner) => inner.length(),
+            Attribute::Fingerprint(inner) => inner.length(),
+            Attribute::MessageIntegrity(inner) => inner.length(),
+            Attribute::Priority(inner) => inner.length(),
+            Attribute::Username(inner) => inner.length(),
+            Attribute::XorMappedAddress(inner) => inner.length(),
+        }
+    }
+
+    fn value(&self) -> Vec<u8> {
+        match self {
+            Attribute::ComprehensionOptional(inner) => inner.value(),
+            Attribute::Fingerprint(inner) => inner.value(),
+            Attribute::MessageIntegrity(inner) => inner.value(),
+            Attribute::Priority(inner) => inner.value(),
+            Attribute::Username(inner) => inner.value(),
+            Attribute::XorMappedAddress(inner) => inner.value(),
+        }
     }
 }
 
@@ -54,7 +112,7 @@ pub trait Attribute: std::fmt::Debug + std::cmp::PartialEq {
 //               Figure 4: Format of STUN Attributes
 //
 // https://tools.ietf.org/html/rfc5389#section-15
-pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Box<Attribute>> {
+pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute> {
     let (remainder, (typ_field, value_field)) = tuple((be_u16, length_data(be_u16)))(input)?;
 
     let pad_len = (4 - (value_field.len() % 4)) % 4;
@@ -97,5 +155,5 @@ pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Box<Attribute>> {
     };
     let (_, attribute) = all_consuming(parser)(value_field)?;
 
-    Ok((remainder, Box::new(attribute)))
+    Ok((remainder, attribute))
 }

@@ -1,16 +1,14 @@
 use std::convert::TryInto;
 
-use nom::{
-    IResult,
-};
+use nom::IResult;
 
-use crate::attribute::Attribute;
+use crate::attribute::{Attribute, Tlv};
 
 #[derive(Debug, PartialEq)]
 pub struct Fingerprint(pub u32);
 
-impl Attribute for Fingerprint {
-    fn r#type(&self) -> u16 {
+impl Tlv for Fingerprint {
+    fn typ(&self) -> u16 {
         0x_8028
     }
 
@@ -23,11 +21,13 @@ impl Attribute for Fingerprint {
     }
 }
 
-pub(crate) fn fingerprint(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn fingerprint(input: &[u8]) -> IResult<&[u8], Attribute> {
     let (input, remainder) = input.split_at(4);
     let input: [u8; 4] = input.try_into().unwrap();
     let value = u32::from_be_bytes(input);
-    let attribute = Fingerprint(value);
+
+    let inner = Fingerprint(value);
+    let attribute = Attribute::Fingerprint(inner);
 
     Ok((remainder, attribute))
 }

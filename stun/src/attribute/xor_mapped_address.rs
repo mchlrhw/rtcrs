@@ -1,25 +1,27 @@
 use std::convert::TryInto;
 use std::net::{IpAddr, Ipv4Addr};
 
-use nom::{
-    number::complete::be_u16,
-    sequence::tuple,
-    IResult,
-};
+use nom::{number::complete::be_u16, sequence::tuple, IResult};
 
 use crate::{
+    attribute::{Attribute, Tlv},
     MAGIC_COOKIE,
-    attribute::Attribute,
 };
 
 #[derive(Debug, PartialEq)]
-struct XorMappedAddress {
+pub struct XorMappedAddress {
     address: IpAddr,
     port: u16,
 }
 
-impl Attribute for XorMappedAddress {
-    fn r#type(&self) -> u16 {
+impl XorMappedAddress {
+    pub fn new(address: IpAddr, port: u16) -> Self {
+        Self { address, port }
+    }
+}
+
+impl Tlv for XorMappedAddress {
+    fn typ(&self) -> u16 {
         0x_0020
     }
 
@@ -41,7 +43,8 @@ impl Attribute for XorMappedAddress {
             _ => unimplemented!(),
         };
 
-        let x_port_field = (self.port ^ (MAGIC_COOKIE >> 16) as u16).to_be_bytes();
+        let magic_cookie_upper_16: u16 = (MAGIC_COOKIE >> 16).try_into().unwrap();
+        let x_port_field = (self.port ^ magic_cookie_upper_16).to_be_bytes();
 
         let mut value_field = family_field.to_vec();
         value_field.extend_from_slice(&x_port_field);
@@ -62,10 +65,11 @@ impl Attribute for XorMappedAddress {
 //         Figure 6: Format of XOR-MAPPED-ADDRESS Attribute
 //
 // https://tools.ietf.org/html/rfc5389#section-15.2
-pub(crate) fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], Attribute> {
     let (x_address_field, (mut family_field, x_port_field)) = tuple((be_u16, be_u16))(input)?;
 
-    let port = x_port_field ^ (MAGIC_COOKIE >> 16) as u16;
+    let magic_cookie_upper_16: u16 = (MAGIC_COOKIE >> 16).try_into().unwrap();
+    let port = x_port_field ^ magic_cookie_upper_16;
 
     family_field &= 0b_0000_0000_1111_1111;
     let (remainder, address) = match family_field {
@@ -83,7 +87,8 @@ pub(crate) fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], impl Attribute>
         _ => unimplemented!(),
     };
 
-    let attribute = XorMappedAddress { address, port };
+    let inner = XorMappedAddress { address, port };
+    let attribute = Attribute::XorMappedAddress(inner);
 
     Ok((remainder, attribute))
 }

@@ -1,21 +1,19 @@
 use std::convert::TryInto;
 
-use nom::{
-    IResult,
-};
+use nom::IResult;
 
-use crate::attribute::Attribute;
+use crate::attribute::{Attribute, Tlv};
 
 #[derive(Debug, PartialEq)]
 pub struct ComprehensionOptional {
-    // TODO: implement type
-    // r#type: u32,
+    // TODO: implement typ
+    // typ: u32,
     value: Vec<u8>,
 }
 
-impl Attribute for ComprehensionOptional {
-    fn r#type(&self) -> u16 {
-        // TODO: replace with self.type
+impl Tlv for ComprehensionOptional {
+    fn typ(&self) -> u16 {
+        // TODO: replace with self.typ
         0x_0000
     }
 
@@ -28,9 +26,11 @@ impl Attribute for ComprehensionOptional {
     }
 }
 
-pub(crate) fn comprehension_optional(input: &[u8]) -> IResult<&[u8], impl Attribute> {
+pub(crate) fn comprehension_optional(input: &[u8]) -> IResult<&[u8], Attribute> {
     let value = input.to_vec();
-    let attribute = ComprehensionOptional { value };
+
+    let inner = ComprehensionOptional { value };
+    let attribute = Attribute::ComprehensionOptional(inner);
 
     Ok((&[], attribute))
 }

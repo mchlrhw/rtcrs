@@ -1,7 +1,5 @@
 mod attribute;
 
-use std::convert::TryInto;
-
 use crc::crc32;
 use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
 use nom::{
@@ -17,10 +15,9 @@ use nom::{
     IResult,
 };
 
+pub use crate::attribute::Attribute;
 use crate::attribute::{
-    fingerprint::Fingerprint,
-    message_integrity::MessageIntegrity,
-    attribute, Attribute
+    attribute, fingerprint::Fingerprint, message_integrity::MessageIntegrity, Tlv,
 };
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
@@ -164,10 +161,10 @@ pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
 #[derive(Debug, PartialEq)]
 pub struct Message {
     pub header: Header,
-    pub attributes: Vec<Box<Attribute>>,
+    pub attributes: Vec<Attribute>,
 }
 
-type MessageArgs = (Header, Vec<Box<Attribute>>);
+type MessageArgs = (Header, Vec<Attribute>);
 
 impl Message {
     fn from_tuple(args: MessageArgs) -> Self {
@@ -211,49 +208,41 @@ impl Message {
         }
     }
 
-    pub fn with_attributes(mut self, attributes: Vec<Box<Attribute>>) -> Self {
+    pub fn with_attributes(mut self, attributes: Vec<Attribute>) -> Self {
+        let mut length = 0;
         for attribute in &self.attributes {
-            let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
-            self.header.length += attribute_length;
+            length += attribute.length();
         }
+        self.header.length = length;
         self.attributes = attributes;
         self
     }
 
     pub fn and_attribute(mut self, attribute: Attribute) -> Self {
-        let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
-        self.header.length += attribute_length;
-        self.attributes.push(Box::new(attribute));
+        self.header.length += attribute.length();
+        self.attributes.push(attribute);
         self
     }
 
-    pub fn with_message_integrity(mut self, key: &[u8]) -> Self {
-        // account for the message integrity attritibute itself:
-        // 20 for the HMAC and 4 for the attribute header
-        self.header.length += 24;
-
+    pub fn with_message_integrity(self, key: &[u8]) -> Self {
         let mut mac = Hmac::new(Sha1::new(), key);
         mac.input(&self.to_bytes());
         let code = mac.result().code().to_vec();
 
-        let attribute = MessageIntegrity(code);
-        self.attributes.push(Box::new(attribute));
+        let inner = MessageIntegrity::new(code);
+        let attribute = Attribute::MessageIntegrity(inner);
 
-        self
+        self.and_attribute(attribute)
     }
 
-    pub fn with_fingerprint(mut self) -> Self {
-        // account for the fingerprint attribute itself:
-        // 32 for the CRC and 4 for the attribute header
-        self.header.length += 36;
-
+    pub fn with_fingerprint(self) -> Self {
         let checksum = crc32::checksum_ieee(&self.to_bytes());
         let value = checksum ^ FINGERPRINT_COOKIE;
 
-        let attribute = Fingerprint(value);
-        self.attributes.push(Box::new(attribute));
+        let inner = Fingerprint(value);
+        let attribute = Attribute::Fingerprint(inner);
 
-        self
+        self.and_attribute(attribute)
     }
 }
 
