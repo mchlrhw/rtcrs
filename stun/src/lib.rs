@@ -8,7 +8,7 @@ use nom::{
         complete::{tag as tag_bits, take as take_bits},
     },
     bytes::complete::{tag as tag_bytes, take as take_bytes},
-    combinator::{map, map_parser},
+    combinator::{all_consuming, map, map_parser},
     multi::many0,
     number::complete::be_u16,
     sequence::{preceded, terminated, tuple},
@@ -175,7 +175,8 @@ impl Message {
 }
 
 pub fn message(input: &[u8]) -> IResult<&[u8], Message> {
-    let (remainder, message) = map(tuple((header, many0(attribute))), Message::from_tuple)(input)?;
+    let (remainder, message) =
+        all_consuming(map(tuple((header, many0(attribute))), Message::from_tuple))(input)?;
 
     // TODO: if MessageIntegrity in attributes, check input against it
     // TODO: if Fingerprint in attributes, check input against it

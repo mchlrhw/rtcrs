@@ -7,11 +7,7 @@ mod xor_mapped_address;
 
 use std::net::IpAddr;
 
-use log::trace;
-use nom::{
-    combinator::all_consuming, multi::length_data, number::complete::be_u16, sequence::tuple,
-    IResult,
-};
+use nom::{branch::alt, IResult};
 
 use crate::attribute::{
     comprehension_optional::{comprehension_optional, ComprehensionOptional},
@@ -124,47 +120,33 @@ impl Tlv for Attribute {
 //
 // https://tools.ietf.org/html/rfc5389#section-15
 pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute> {
-    let (remainder, (typ_field, value_field)) = tuple((be_u16, length_data(be_u16)))(input)?;
-
-    let pad_len = (4 - (value_field.len() % 4)) % 4;
-    let padding = remainder[0..pad_len].to_vec();
-    let remainder = &remainder[pad_len..];
-
-    trace!(
-        "Parsing attribute: {:04X?} {:02X?} {:02X?}",
-        typ_field,
-        value_field,
-        padding
-    );
-
-    let parser = match typ_field {
+    alt((
         // Comprehension-required range (0x0000-0x7FFF)
         // 0x0000: (Reserved)
-        // TODO: 0x_0001 => AttributeType::MappedAddress
+        // TODO: 0x0001: MAPPED-ADDRESS
         // 0x0002: (Reserved; was RESPONSE-ADDRESS)
         // 0x0003: (Reserved; was CHANGE-ADDRESS)
         // 0x0004: (Reserved; was SOURCE-ADDRESS)
         // 0x0005: (Reserved; was CHANGED-ADDRESS)
-        0x_0006 => username,
+        // 0x0006: USERNAME
+        username,
         // 0x0007: (Reserved; was PASSWORD)
-        0x_0008 => message_integrity,
-        // TODO: 0x_0009 => AttributeType::ErrorCode
-        // TODO: 0x_000A => AttributeType::UnknownAttributes
+        // 0x0008: MESSAGE-INTEGIRTY
+        message_integrity,
+        // TODO: 0x0009: ERROR-CODE
+        // TODO: 0x000A: UNKNOWN-ATTRIBUTES
         // 0x000B: (Reserved; was REFLECTED-FROM)
-        // TODO: 0x_0014 => AttributeType::Realm
-        // TODO: 0x_0015 => AttributeType::Nonce
-        0x_0020 => xor_mapped_address,
-        0x_0024 => priority,
+        // TODO: 0x0014: REALM
+        // TODO: 0x0015: NONCE
+        // 0x0020: XOR-MAPPED-ADDRESS
+        xor_mapped_address,
+        // 0x0024: PRIORITY
+        priority,
         // Comprehension-optional range (0x8000-0xFFFF)
-        0x_8000..=0x_8027 => comprehension_optional,
-        // TODO: 0x_8022 => AttributeType::Software
-        // TODO: 0x_8023 => AttributeType::AlternateServer
-        0x_8028 => fingerprint,
-        0x_8029..=0x_FFFF => comprehension_optional,
-        // TODO: return Err here
-        _ => unimplemented!(),
-    };
-    let (_, attribute) = all_consuming(parser)(value_field)?;
-
-    Ok((remainder, attribute))
+        // TODO: 0x8022: SOFTWARE
+        // TODO: 0x8023: ALTERNATE-SERVER
+        // 0x8028: FINGERPRINT
+        fingerprint,
+        comprehension_optional,
+    ))(input)
 }
