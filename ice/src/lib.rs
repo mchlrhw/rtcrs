@@ -75,11 +75,8 @@ fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<
                 transaction_id: message.header.transaction_id,
             })
             .with_attributes(vec![
-                stun::Attribute::Username(username),
-                stun::Attribute::XorMappedAddress {
-                    address: src_addr.ip(),
-                    port: src_addr.port(),
-                },
+                stun::Attribute::username(username.as_str()),
+                stun::Attribute::xor_mapped_address(src_addr.ip(), src_addr.port()),
             ])
             .with_message_integrity(key.as_ref())
             .with_fingerprint()
