@@ -1,5 +1,7 @@
 mod attribute;
 
+use std::convert::TryInto;
+
 use crc::crc32;
 use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
 use nom::{
@@ -210,21 +212,27 @@ impl Message {
 
     pub fn with_attributes(mut self, attributes: Vec<Attribute>) -> Self {
         let mut length = 0;
-        for attribute in &self.attributes {
-            length += attribute.length();
+        for attribute in &attributes {
+            let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
+            length += attribute_length;
         }
         self.header.length = length;
         self.attributes = attributes;
+
         self
     }
 
     pub fn and_attribute(mut self, attribute: Attribute) -> Self {
-        self.header.length += attribute.length();
+        let attribute_length: u16 = attribute.to_bytes().len().try_into().unwrap();
+        self.header.length += attribute_length;
         self.attributes.push(attribute);
         self
     }
 
-    pub fn with_message_integrity(self, key: &[u8]) -> Self {
+    pub fn with_message_integrity(mut self, key: &[u8]) -> Self {
+        // account for the MESSAGE-INTEGRITY attribute itself
+        self.header.length += 24;
+
         let mut mac = Hmac::new(Sha1::new(), key);
         mac.input(&self.to_bytes());
         let code = mac.result().code().to_vec();
@@ -232,16 +240,23 @@ impl Message {
         let inner = MessageIntegrity::new(code);
         let attribute = Attribute::MessageIntegrity(inner);
 
-        self.and_attribute(attribute)
+        self.attributes.push(attribute);
+
+        self
     }
 
-    pub fn with_fingerprint(self) -> Self {
+    pub fn with_fingerprint(mut self) -> Self {
+        // account for the FINGERPRINT attribute itself
+        self.header.length += 8;
+
         let checksum = crc32::checksum_ieee(&self.to_bytes());
 
         let inner = Fingerprint::new(checksum);
         let attribute = Attribute::Fingerprint(inner);
 
-        self.and_attribute(attribute)
+        self.attributes.push(attribute);
+
+        self
     }
 }
 
@@ -287,5 +302,32 @@ mod tests {
         ];
         let actual = header.to_bytes();
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn with_message_integrity() {
+        let message = Message::base(Header {
+            class: Class::Success,
+            method: Method::Binding,
+            length: 0,
+            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        })
+        .with_message_integrity(&[1, 2, 3, 4]);
+
+        assert_eq!(message.header.length, 24);
+    }
+
+    #[test]
+    fn with_attributes_and_message_integrity() {
+        let message = Message::base(Header {
+            class: Class::Success,
+            method: Method::Binding,
+            length: 0,
+            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        })
+        .with_attributes(vec![Attribute::username("knuth")])
+        .with_message_integrity(&[1, 2, 3, 4]);
+
+        assert_eq!(message.header.length, 36);
     }
 }

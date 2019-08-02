@@ -79,8 +79,11 @@ fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<
                 stun::Attribute::xor_mapped_address(src_addr.ip(), src_addr.port()),
             ])
             .with_message_integrity(key.as_ref())
-            .with_fingerprint()
-            .to_bytes();
+            .with_fingerprint();
+
+            trace!("Prepared reply: {:?}", reply);
+
+            let reply = reply.to_bytes();
 
             trace!("Sending reply: {:02X?}", reply.to_vec());
 
