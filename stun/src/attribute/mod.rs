@@ -52,58 +52,58 @@ impl Attribute {
     pub fn username(value: &str) -> Self {
         let inner = Username::new(value);
 
-        Attribute::Username(inner)
+        Self::Username(inner)
     }
 
     pub fn xor_mapped_address(address: IpAddr, port: u16) -> Self {
         let inner = XorMappedAddress::new(address, port);
 
-        Attribute::XorMappedAddress(inner)
+        Self::XorMappedAddress(inner)
     }
 }
 
 impl Tlv for Attribute {
     fn typ(&self) -> u16 {
         match self {
-            Attribute::ComprehensionOptional(inner) => inner.typ(),
-            Attribute::Fingerprint(inner) => inner.typ(),
-            Attribute::MessageIntegrity(inner) => inner.typ(),
-            Attribute::Priority(inner) => inner.typ(),
-            Attribute::Username(inner) => inner.typ(),
-            Attribute::XorMappedAddress(inner) => inner.typ(),
+            Self::ComprehensionOptional(inner) => inner.typ(),
+            Self::Fingerprint(inner) => inner.typ(),
+            Self::MessageIntegrity(inner) => inner.typ(),
+            Self::Priority(inner) => inner.typ(),
+            Self::Username(inner) => inner.typ(),
+            Self::XorMappedAddress(inner) => inner.typ(),
         }
     }
 
     fn length(&self) -> u16 {
         match self {
-            Attribute::ComprehensionOptional(inner) => inner.length(),
-            Attribute::Fingerprint(inner) => inner.length(),
-            Attribute::MessageIntegrity(inner) => inner.length(),
-            Attribute::Priority(inner) => inner.length(),
-            Attribute::Username(inner) => inner.length(),
-            Attribute::XorMappedAddress(inner) => inner.length(),
+            Self::ComprehensionOptional(inner) => inner.length(),
+            Self::Fingerprint(inner) => inner.length(),
+            Self::MessageIntegrity(inner) => inner.length(),
+            Self::Priority(inner) => inner.length(),
+            Self::Username(inner) => inner.length(),
+            Self::XorMappedAddress(inner) => inner.length(),
         }
     }
 
     fn value(&self) -> Vec<u8> {
         match self {
-            Attribute::ComprehensionOptional(inner) => inner.value(),
-            Attribute::Fingerprint(inner) => inner.value(),
-            Attribute::MessageIntegrity(inner) => inner.value(),
-            Attribute::Priority(inner) => inner.value(),
-            Attribute::Username(inner) => inner.value(),
-            Attribute::XorMappedAddress(inner) => inner.value(),
+            Self::ComprehensionOptional(inner) => inner.value(),
+            Self::Fingerprint(inner) => inner.value(),
+            Self::MessageIntegrity(inner) => inner.value(),
+            Self::Priority(inner) => inner.value(),
+            Self::Username(inner) => inner.value(),
+            Self::XorMappedAddress(inner) => inner.value(),
         }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         match self {
-            Attribute::ComprehensionOptional(inner) => inner.to_bytes(),
-            Attribute::Fingerprint(inner) => inner.to_bytes(),
-            Attribute::MessageIntegrity(inner) => inner.to_bytes(),
-            Attribute::Priority(inner) => inner.to_bytes(),
-            Attribute::Username(inner) => inner.to_bytes(),
-            Attribute::XorMappedAddress(inner) => inner.to_bytes(),
+            Self::ComprehensionOptional(inner) => inner.to_bytes(),
+            Self::Fingerprint(inner) => inner.to_bytes(),
+            Self::MessageIntegrity(inner) => inner.to_bytes(),
+            Self::Priority(inner) => inner.to_bytes(),
+            Self::Username(inner) => inner.to_bytes(),
+            Self::XorMappedAddress(inner) => inner.to_bytes(),
         }
     }
 }

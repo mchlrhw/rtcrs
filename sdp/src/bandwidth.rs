@@ -21,7 +21,7 @@ pub enum BandwidthType {
 impl fmt::Display for BandwidthType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BandwidthType::Experimental(x) => write!(f, "X-{}", x),
+            Self::Experimental(x) => write!(f, "X-{}", x),
             _ => write!(f, "{:?}", self),
         }
     }

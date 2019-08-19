@@ -19,19 +19,19 @@ pub enum Attribute {
 
 impl Attribute {
     pub fn property(p: &str) -> Self {
-        Attribute::Property(p.to_owned())
+        Self::Property(p.to_owned())
     }
 
     pub fn value(k: &str, v: &str) -> Self {
-        Attribute::Value(k.to_owned(), v.to_owned())
+        Self::Value(k.to_owned(), v.to_owned())
     }
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Attribute::Property(p) => write!(f, "a={}\r\n", p),
-            Attribute::Value(k, v) => write!(f, "a={}:{}\r\n", k, v),
+            Self::Property(p) => write!(f, "a={}\r\n", p),
+            Self::Value(k, v) => write!(f, "a={}:{}\r\n", k, v),
         }
     }
 }

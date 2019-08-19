@@ -31,11 +31,11 @@ pub enum MediaType {
 impl fmt::Display for MediaType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MediaType::Application => write!(f, "application"),
-            MediaType::Audio => write!(f, "audio"),
-            MediaType::Message => write!(f, "message"),
-            MediaType::Text => write!(f, "text"),
-            MediaType::Video => write!(f, "video"),
+            Self::Application => write!(f, "application"),
+            Self::Audio => write!(f, "audio"),
+            Self::Message => write!(f, "message"),
+            Self::Text => write!(f, "text"),
+            Self::Video => write!(f, "video"),
         }
     }
 }

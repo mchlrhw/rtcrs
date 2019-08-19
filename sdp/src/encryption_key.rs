@@ -22,10 +22,10 @@ pub enum RetrievalMethod {
 impl fmt::Display for RetrievalMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RetrievalMethod::Base64 => write!(f, "base64"),
-            RetrievalMethod::Clear => write!(f, "clear"),
-            RetrievalMethod::Prompt => write!(f, "prompt"),
-            RetrievalMethod::URI => write!(f, "uri"),
+            Self::Base64 => write!(f, "base64"),
+            Self::Clear => write!(f, "clear"),
+            Self::Prompt => write!(f, "prompt"),
+            Self::URI => write!(f, "uri"),
         }
     }
 }
