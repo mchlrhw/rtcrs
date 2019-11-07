@@ -12,4 +12,4 @@ ice = { path = "../ice" }
 log = "0.4.7"
 rand = "0.7.0"
 sdp = { path = "../sdp" }
-pnet = "0.22.0"
+pnet = "0.23.0"
