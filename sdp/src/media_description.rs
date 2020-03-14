@@ -72,7 +72,7 @@ fn media(input: Span) -> IResult<Span, Media> {
         )),
     )(input)?;
 
-    let typ = match span.fragment {
+    let typ = match *span.fragment() {
         "application" => MediaType::Application,
         "audio" => MediaType::Audio,
         "message" => MediaType::Message,
@@ -86,17 +86,17 @@ fn media(input: Span) -> IResult<Span, Media> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let port = u64::from_str_radix(span.fragment, 10).unwrap();
+    let port = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
     // TODO: we might want to parse this into an enum
-    let protocol = span.fragment.to_owned();
+    let protocol = span.fragment().to_string();
 
     let (remainder, span) = delimited(tag(" "), not_line_ending, line_ending)(remainder)?;
 
     // TODO: parse this based on the protocol field
-    let format = span.fragment.to_owned();
+    let format = span.fragment().to_string();
 
     let media = Media {
         typ,
@@ -187,25 +187,25 @@ impl fmt::Display for MediaDescription {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let title_string = match &self.title {
             Some(s) => s.to_string(),
-            None => "".to_owned(),
+            None => "".to_string(),
         };
 
         let connection_string = match &self.connection {
             Some(c) => c.to_string(),
-            None => "".to_owned(),
+            None => "".to_string(),
         };
 
-        let mut bandwidths_string = "".to_owned();
+        let mut bandwidths_string = "".to_string();
         for bandwidth in &self.bandwidths {
             bandwidths_string += &bandwidth.to_string();
         }
 
         let encryption_key_string = match &self.encryption_key {
             Some(e) => e.to_string(),
-            None => "".to_owned(),
+            None => "".to_string(),
         };
 
-        let mut attributes_string = "".to_owned();
+        let mut attributes_string = "".to_string();
         for attribute in &self.attributes {
             attributes_string += &attribute.to_string();
         }
@@ -254,8 +254,8 @@ mod tests {
         let media = Media {
             typ: MediaType::Audio,
             port: 51596,
-            protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
-            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+            protocol: "UDP/TLS/RTP/SAVPF".to_string(),
+            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_string(),
         };
         let expected =
             "m=audio 51596 UDP/TLS/RTP/SAVPF 111 103 104 9 102 0 8 106 105 13 110 112 113 126\r\n";
@@ -271,8 +271,8 @@ mod tests {
         let expected = Media {
             typ: MediaType::Audio,
             port: 51596,
-            protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
-            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+            protocol: "UDP/TLS/RTP/SAVPF".to_string(),
+            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_string(),
         };
         let actual = media(input).unwrap().1;
         assert_eq!(expected, actual);
@@ -283,8 +283,8 @@ mod tests {
         let media_description = MediaDescription::base(Media {
             typ: MediaType::Audio,
             port: 51596,
-            protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
-            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+            protocol: "UDP/TLS/RTP/SAVPF".to_string(),
+            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_string(),
         })
         .and_attribute(Attribute::value("rtcp", "9 IN IP4 0.0.0.0"));
 
@@ -299,8 +299,8 @@ mod tests {
         let expected = MediaDescription::base(Media {
             typ: MediaType::Audio,
             port: 51596,
-            protocol: "UDP/TLS/RTP/SAVPF".to_owned(),
-            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_owned(),
+            protocol: "UDP/TLS/RTP/SAVPF".to_string(),
+            format: "111 103 104 9 102 0 8 106 105 13 110 112 113 126".to_string(),
         })
         .and_attribute(Attribute::value("rtcp", "9 IN IP4 0.0.0.0"));
 

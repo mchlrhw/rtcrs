@@ -49,17 +49,17 @@ fn bandwidth_type(input: Span) -> IResult<Span, BandwidthType> {
                 preceded(tag("X-"), take_till1(|c| c == ':')),
             )),
         ),
-        |span: Span| match span.fragment {
+        |span: Span| match *span.fragment() {
             "CT" => BandwidthType::CT,
             "AS" => BandwidthType::AS,
-            s => BandwidthType::Experimental(s.to_owned()),
+            s => BandwidthType::Experimental(s.to_string()),
         },
     )(input)
 }
 
 fn bandwidth_value(input: Span) -> IResult<Span, u64> {
     map(delimited(tag(":"), digit1, line_ending), |s: Span| {
-        u64::from_str_radix(s.fragment, 10).unwrap()
+        u64::from_str_radix(s.fragment(), 10).unwrap()
     })(input)
 }
 
@@ -90,7 +90,7 @@ mod tests {
     fn parse_bandwidth() {
         let input = Span::new("b=X-YZ:128\r\n");
         let expected = Bandwidth {
-            typ: BandwidthType::Experimental("YZ".to_owned()),
+            typ: BandwidthType::Experimental("YZ".to_string()),
             value: 128,
         };
         let actual = bandwidth(input).unwrap().1;

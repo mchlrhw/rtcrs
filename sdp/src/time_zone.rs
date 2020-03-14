@@ -35,7 +35,7 @@ fn offset(input: Span) -> IResult<Span, i64> {
     let (remainder, (sign, value_span, units)) =
         tuple((opt(one_of("+-")), digit1, opt(one_of("dhms"))))(input)?;
 
-    let offset_string = sign.map_or("".to_owned(), |c| c.to_string()) + value_span.fragment;
+    let offset_string = sign.map_or("".to_owned(), |c| c.to_string()) + value_span.fragment();
 
     // SAFE: since we've parsed this as +/- digit1, so we don't
     //       need to guard against parse errors in from_str_radix
@@ -60,7 +60,7 @@ fn adjustment(input: Span) -> IResult<Span, Adjustment> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let time = u64::from_str_radix(span.fragment, 10).unwrap();
+    let time = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let adjustment = Adjustment { time, offset };
 

@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 failure = "0.1.5"
-nom = "5"
-nom_locate = { git = "https://github.com/fflorent/nom_locate.git" }
+nom = "5.1"
+nom_locate = "2.0"

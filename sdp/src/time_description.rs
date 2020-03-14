@@ -30,13 +30,13 @@ pub fn timing(input: Span) -> IResult<Span, Timing> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let start_time = u64::from_str_radix(span.fragment, 10).unwrap();
+    let start_time = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let (remainder, span) = delimited(tag(" "), digit1, line_ending)(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let stop_time = u64::from_str_radix(span.fragment, 10).unwrap();
+    let stop_time = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let timing = Timing {
         start_time,
@@ -72,7 +72,7 @@ fn offset(input: Span) -> IResult<Span, u64> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let offset = u64::from_str_radix(span.fragment, 10).unwrap();
+    let offset = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     Ok((remainder, offset))
 }
@@ -84,13 +84,13 @@ pub fn repeat(input: Span) -> IResult<Span, Repeat> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let interval = u64::from_str_radix(span.fragment, 10).unwrap();
+    let interval = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let (remainder, span) = preceded(tag(" "), digit1)(remainder)?;
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let active_duration = u64::from_str_radix(span.fragment, 10).unwrap();
+    let active_duration = u64::from_str_radix(span.fragment(), 10).unwrap();
 
     let (remainder, offsets) = terminated(many1(offset), line_ending)(remainder)?;
 

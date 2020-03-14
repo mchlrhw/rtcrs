@@ -45,14 +45,14 @@ pub fn connection(input: Span) -> IResult<Span, Connection> {
     map(
         tuple((
             map(preceded(tag("c="), take_till1(|c| c == ' ')), |s: Span| {
-                s.fragment.to_owned()
+                s.fragment().to_string()
             }),
             map(preceded(tag(" "), take_till1(|c| c == ' ')), |s: Span| {
-                s.fragment.to_owned()
+                s.fragment().to_string()
             }),
             map(
                 delimited(tag(" "), not_line_ending, line_ending),
-                |s: Span| s.fragment.to_owned(),
+                |s: Span| s.fragment().to_string(),
             ),
         )),
         Connection::from_tuple,
@@ -66,9 +66,9 @@ mod tests {
     #[test]
     fn display_connection() {
         let connection = Connection {
-            network_type: "IN".to_owned(),
-            address_type: "IP4".to_owned(),
-            connection_address: "127.0.0.1".to_owned(),
+            network_type: "IN".to_string(),
+            address_type: "IP4".to_string(),
+            connection_address: "127.0.0.1".to_string(),
         };
         let expected = "c=IN IP4 127.0.0.1\r\n";
         let actual = connection.to_string();
@@ -79,9 +79,9 @@ mod tests {
     fn parse_connection() {
         let input = Span::new("c=IN IP4 127.0.0.1\r\n");
         let expected = Connection {
-            network_type: "IN".to_owned(),
-            address_type: "IP4".to_owned(),
-            connection_address: "127.0.0.1".to_owned(),
+            network_type: "IN".to_string(),
+            address_type: "IP4".to_string(),
+            connection_address: "127.0.0.1".to_string(),
         };
         let actual = connection(input).unwrap().1;
         assert_eq!(expected, actual);

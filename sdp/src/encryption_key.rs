@@ -63,7 +63,7 @@ pub fn encryption_key(input: Span) -> IResult<Span, EncryptionKey> {
         line_ending,
     )(input)?;
 
-    let method = match method_span.fragment {
+    let method = match *method_span.fragment() {
         "base64" => RetrievalMethod::Base64,
         "clear" => RetrievalMethod::Clear,
         "prompt" => RetrievalMethod::Prompt,
@@ -71,7 +71,7 @@ pub fn encryption_key(input: Span) -> IResult<Span, EncryptionKey> {
         _ => unreachable!(),
     };
     // TODO: ensure base64, clear and uri all have Some(data)
-    let data = data_opt.map(|s| s.fragment.to_owned());
+    let data = data_opt.map(|s| s.fragment().to_string());
 
     let encryption_key = EncryptionKey { method, data };
 

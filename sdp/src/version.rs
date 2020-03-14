@@ -25,7 +25,7 @@ pub fn version(input: Span) -> IResult<Span, Version> {
 
     // SAFE: since we've parsed this as digit1, so we don't need
     //       to guard against parse errors in from_str_radix
-    let version = Version(u8::from_str_radix(span.fragment, 10).unwrap());
+    let version = Version(u8::from_str_radix(span.fragment(), 10).unwrap());
 
     Ok((remainder, version))
 }

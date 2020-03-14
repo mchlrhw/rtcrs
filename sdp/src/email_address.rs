@@ -25,7 +25,7 @@ pub fn email_address(input: Span) -> IResult<Span, EmailAddress> {
     map(
         map(
             delimited(tag("e="), not_line_ending, line_ending),
-            |s: Span| s.fragment.to_owned(),
+            |s: Span| s.fragment().to_string(),
         ),
         EmailAddress,
     )(input)
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn display_email_address() {
-        let email_address = EmailAddress("j.doe@example.com (Jane Doe)".to_owned());
+        let email_address = EmailAddress("j.doe@example.com (Jane Doe)".to_string());
         let expected = "e=j.doe@example.com (Jane Doe)\r\n";
         let actual = email_address.to_string();
         assert_eq!(expected, actual);
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn parse_email_address() {
         let input = Span::new("e=j.doe@example.com (Jane Doe)\r\n");
-        let expected = EmailAddress("j.doe@example.com (Jane Doe)".to_owned());
+        let expected = EmailAddress("j.doe@example.com (Jane Doe)".to_string());
         let actual = email_address(input).unwrap().1;
         assert_eq!(expected, actual);
     }
