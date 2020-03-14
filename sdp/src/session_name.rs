@@ -23,7 +23,7 @@ impl fmt::Display for SessionName {
 pub fn session_name(input: Span) -> IResult<Span, SessionName> {
     let (remainder, span) = delimited(tag("s="), not_line_ending, line_ending)(input)?;
 
-    let session_name = SessionName(span.fragment().to_string());
+    let session_name = SessionName((*span.fragment()).to_string());
 
     Ok((remainder, session_name))
 }

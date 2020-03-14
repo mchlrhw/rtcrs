@@ -23,7 +23,7 @@ impl fmt::Display for PhoneNumber {
 pub fn phone_number(input: Span) -> IResult<Span, PhoneNumber> {
     let (remainder, span) = delimited(tag("p="), not_line_ending, line_ending)(input)?;
 
-    let phone_number = PhoneNumber(span.fragment().to_string());
+    let phone_number = PhoneNumber((*span.fragment()).to_string());
 
     Ok((remainder, phone_number))
 }

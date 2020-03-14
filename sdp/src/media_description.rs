@@ -91,12 +91,12 @@ fn media(input: Span) -> IResult<Span, Media> {
     let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
     // TODO: we might want to parse this into an enum
-    let protocol = span.fragment().to_string();
+    let protocol = (*span.fragment()).to_string();
 
     let (remainder, span) = delimited(tag(" "), not_line_ending, line_ending)(remainder)?;
 
     // TODO: parse this based on the protocol field
-    let format = span.fragment().to_string();
+    let format = (*span.fragment()).to_string();
 
     let media = Media {
         typ,

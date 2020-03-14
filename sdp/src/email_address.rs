@@ -25,7 +25,7 @@ pub fn email_address(input: Span) -> IResult<Span, EmailAddress> {
     map(
         map(
             delimited(tag("e="), not_line_ending, line_ending),
-            |s: Span| s.fragment().to_string(),
+            |s: Span| (*s.fragment()).to_string(),
         ),
         EmailAddress,
     )(input)

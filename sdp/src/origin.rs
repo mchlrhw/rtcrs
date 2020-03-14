@@ -39,7 +39,7 @@ impl fmt::Display for Origin {
 pub fn origin(input: Span) -> IResult<Span, Origin> {
     let (remainder, span) = preceded(tag("o="), take_till1(|c| c == ' '))(input)?;
 
-    let username = span.fragment().to_string();
+    let username = (*span.fragment()).to_string();
 
     let (remainder, span) = preceded(tag(" "), digit1)(remainder)?;
 
@@ -55,15 +55,15 @@ pub fn origin(input: Span) -> IResult<Span, Origin> {
 
     let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
-    let network_type = span.fragment().to_string();
+    let network_type = (*span.fragment()).to_string();
 
     let (remainder, span) = preceded(tag(" "), take_till1(|c| c == ' '))(remainder)?;
 
-    let address_type = span.fragment().to_string();
+    let address_type = (*span.fragment()).to_string();
 
     let (remainder, span) = delimited(tag(" "), not_line_ending, line_ending)(remainder)?;
 
-    let unicast_address = span.fragment().to_string();
+    let unicast_address = (*span.fragment()).to_string();
 
     let origin = Origin {
         username,

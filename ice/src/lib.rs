@@ -7,9 +7,6 @@ use log::{debug, trace, warn};
 use pnet::datalink;
 use rand::{self, seq::SliceRandom};
 
-use sdp;
-use stun;
-
 const MTU: usize = 1500;
 const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
 

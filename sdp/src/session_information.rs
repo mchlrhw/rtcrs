@@ -23,7 +23,7 @@ impl fmt::Display for SessionInformation {
 pub fn session_information(input: Span) -> IResult<Span, SessionInformation> {
     let (remainder, span) = delimited(tag("i="), not_line_ending, line_ending)(input)?;
 
-    let session_information = SessionInformation(span.fragment().to_string());
+    let session_information = SessionInformation((*span.fragment()).to_string());
 
     Ok((remainder, session_information))
 }

@@ -1,8 +1,3 @@
-use env_logger;
-
-use ice;
-use sdp;
-
 fn main() {
     env_logger::init();
 

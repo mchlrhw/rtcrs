@@ -40,7 +40,7 @@ impl fmt::Display for Attribute {
 // https://tools.ietf.org/html/rfc4566#section-5.13
 fn property_attribute(input: Span) -> IResult<Span, Attribute> {
     map(
-        map(not_line_ending, |s: Span| s.fragment().to_string()),
+        map(not_line_ending, |s: Span| (*s.fragment()).to_string()),
         Attribute::Property,
     )(input)
 }
@@ -52,10 +52,10 @@ fn value_attribute(input: Span) -> IResult<Span, Attribute> {
         pair(
             map(
                 take_till1(|c: char| c == ':' || c.is_whitespace()),
-                |s: Span| s.fragment().to_string(),
+                |s: Span| (*s.fragment()).to_string(),
             ),
             map(preceded(tag(":"), not_line_ending), |s: Span| {
-                s.fragment().to_string()
+                (*s.fragment()).to_string()
             }),
         ),
         |(k, v)| Attribute::Value(k, v),

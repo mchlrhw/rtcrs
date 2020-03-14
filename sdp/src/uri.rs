@@ -24,7 +24,7 @@ pub fn uri(input: Span) -> IResult<Span, URI> {
     // TODO: parse this against https://tools.ietf.org/html/rfc3986
     let (remainder, span) = delimited(tag("u="), not_line_ending, line_ending)(input)?;
 
-    let uri = URI(span.fragment().to_string());
+    let uri = URI((*span.fragment()).to_string());
 
     Ok((remainder, uri))
 }

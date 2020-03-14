@@ -45,14 +45,14 @@ pub fn connection(input: Span) -> IResult<Span, Connection> {
     map(
         tuple((
             map(preceded(tag("c="), take_till1(|c| c == ' ')), |s: Span| {
-                s.fragment().to_string()
+                (*s.fragment()).to_string()
             }),
             map(preceded(tag(" "), take_till1(|c| c == ' ')), |s: Span| {
-                s.fragment().to_string()
+                (*s.fragment()).to_string()
             }),
             map(
                 delimited(tag(" "), not_line_ending, line_ending),
-                |s: Span| s.fragment().to_string(),
+                |s: Span| (*s.fragment()).to_string(),
             ),
         )),
         Connection::from_tuple,
