@@ -1,6 +1,4 @@
-use std::fmt;
-
-use std::str::FromStr;
+use std::{convert::TryFrom, fmt};
 
 use nom::{
     combinator::{all_consuming, map, opt},
@@ -28,10 +26,10 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SessionDescription {
+pub struct SessionDescription<'a> {
     pub version: Version,
     pub origin: Origin,
-    pub session_name: SessionName,
+    pub session_name: SessionName<'a>,
     pub session_information: Option<SessionInformation>,
     pub uri: Option<URI>,
     pub email_addresses: Vec<EmailAddress>,
@@ -45,11 +43,11 @@ pub struct SessionDescription {
     pub media_descriptions: Vec<MediaDescription>,
 }
 
-impl SessionDescription {
+impl<'a> SessionDescription<'a> {
     pub fn base(
         version: Version,
         origin: Origin,
-        session_name: SessionName,
+        session_name: SessionName<'a>,
         time_description: TimeDescription,
     ) -> Self {
         Self {
@@ -96,10 +94,10 @@ impl SessionDescription {
     }
 }
 
-type SessionDescriptionArgs = (
+type SessionDescriptionArgs<'a> = (
     Version,
     Origin,
-    SessionName,
+    SessionName<'a>,
     Option<SessionInformation>,
     Option<URI>,
     Vec<EmailAddress>,
@@ -113,8 +111,8 @@ type SessionDescriptionArgs = (
     Vec<MediaDescription>,
 );
 
-impl SessionDescription {
-    fn from_tuple(args: SessionDescriptionArgs) -> Self {
+impl<'a> SessionDescription<'a> {
+    fn from_tuple(args: SessionDescriptionArgs<'a>) -> Self {
         Self {
             version: args.0,
             origin: args.1,
@@ -134,7 +132,7 @@ impl SessionDescription {
     }
 }
 
-impl fmt::Display for SessionDescription {
+impl fmt::Display for SessionDescription<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let session_information_string = match &self.session_information {
             Some(s) => s.to_string(),
@@ -244,10 +242,10 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
     )(input)
 }
 
-impl FromStr for SessionDescription {
-    type Err = SDPError;
+impl<'a> TryFrom<&'a str> for SessionDescription<'a> {
+    type Error = SDPError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: &'a str) -> Result<SessionDescription<'a>, Self::Error> {
         let input = Span::new(s);
         let (_, session_description) = all_consuming(session_description)(input)
             .or(Err(SDPError::InvalidSessionDescription))?;
@@ -279,7 +277,7 @@ mod tests {
                 address_type: "IP4".to_owned(),
                 unicast_address: "127.0.0.1".to_owned(),
             },
-            SessionName("-".to_owned()),
+            SessionName::new("-"),
             TimeDescription::base(Timing {
                 start_time: 0,
                 stop_time: 0,
@@ -339,7 +337,7 @@ a=rtpmap:99 h263-1998/90000
                 address_type: "IP4".to_owned(),
                 unicast_address: "127.0.0.1".to_owned(),
             },
-            SessionName("-".to_owned()),
+            SessionName::new("-"),
             TimeDescription::base(Timing {
                 start_time: 0,
                 stop_time: 0,
@@ -370,7 +368,7 @@ a=rtpmap:99 h263-1998/90000
             })
             .and_attribute(Attribute::value("rtpmap", "99 h263-1998/90000")),
         ]);
-        let actual = SessionDescription::from_str(sdp)?;
+        let actual = SessionDescription::try_from(sdp)?;
         assert_eq!(expected, actual);
         Ok(())
     }

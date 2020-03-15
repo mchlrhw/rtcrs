@@ -58,7 +58,7 @@ fn main() {
             address_type: "IP4".to_owned(),
             unicast_address: "127.0.0.1".to_owned(),
         },
-        sdp::SessionName("-".to_owned()),
+        sdp::SessionName::new("-"),
         sdp::TimeDescription::base(
             sdp::Timing {
                 start_time: 0,
