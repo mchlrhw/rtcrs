@@ -10,6 +10,6 @@ edition = "2018"
 failure = "0.1"
 log = "0.4"
 rand = "0.7"
-pnet = "0.25"
+pnet = "0.26"
 sdp = { path = "../sdp" }
 stun = { path = "../stun" }
