@@ -2,13 +2,19 @@ use std::default::Default;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::thread::{self, JoinHandle};
 
-use failure::Error;
+use fehler::throws;
 use log::{debug, trace, warn};
 use pnet::datalink;
 use rand::{self, seq::SliceRandom};
 
 const MTU: usize = 1500;
 const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
+
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("failed to bind")]
+    BindError { source: std::io::Error },
+}
 
 fn rand_ice_string(length: usize) -> String {
     let mut rng = &mut rand::thread_rng();
@@ -20,10 +26,12 @@ fn rand_ice_string(length: usize) -> String {
     String::from_utf8(random_chars).unwrap()
 }
 
-fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<()>), Error> {
+#[throws]
+fn udp_listener(address: IpAddr, key: String) -> (SocketAddr, JoinHandle<()>) {
     debug!("Starting UDP listener on {}", address);
 
-    let socket = UdpSocket::bind(format!("{}:0", address))?;
+    let socket =
+        UdpSocket::bind(format!("{}:0", address)).map_err(|source| Error::BindError { source })?;
     let local_addr = socket.local_addr().unwrap();
     debug!("Socket bound to {}", local_addr);
 
@@ -88,7 +96,7 @@ fn udp_listener(address: IpAddr, key: String) -> Result<(SocketAddr, JoinHandle<
         }
     });
 
-    Ok((local_addr, handle))
+    (local_addr, handle)
 }
 
 #[derive(Clone, Debug, PartialEq)]
