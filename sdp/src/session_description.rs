@@ -1,7 +1,6 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
-use std::str::FromStr;
-
+use fehler::throws;
 use nom::{
     combinator::{all_consuming, map, opt},
     multi::many0,
@@ -24,7 +23,7 @@ use crate::{
     time_zone::{time_zone, TimeZone},
     uri::{uri, URI},
     version::{version, Version},
-    SDPError, Span,
+    Error, Span,
 };
 
 #[derive(Debug, PartialEq)]
@@ -245,22 +244,21 @@ fn session_description(input: Span) -> IResult<Span, SessionDescription> {
 }
 
 impl FromStr for SessionDescription {
-    type Err = SDPError;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    #[throws]
+    fn from_str(s: &str) -> Self {
         let input = Span::new(s);
-        let (_, session_description) = all_consuming(session_description)(input)
-            .or(Err(SDPError::InvalidSessionDescription))?;
+        let (_, session_description) =
+            all_consuming(session_description)(input).or(Err(Error::InvalidSessionDescription))?;
 
-        Ok(session_description)
+        session_description
     }
 }
 
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
 mod tests {
-    use failure::Error;
-
     use super::*;
     use crate::{
         media_description::{Media, MediaType},
@@ -316,7 +314,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_session_description() -> Result<(), Error> {
+    #[throws]
+    fn parse_session_description() {
         let sdp = "v=0
 o=- 1433832402044130222 3 IN IP4 127.0.0.1
 s=-
@@ -372,6 +371,5 @@ a=rtpmap:99 h263-1998/90000
         ]);
         let actual = SessionDescription::from_str(sdp)?;
         assert_eq!(expected, actual);
-        Ok(())
     }
 }

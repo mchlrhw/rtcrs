@@ -16,7 +16,6 @@ mod time_zone;
 mod uri;
 mod version;
 
-use failure::Fail;
 use nom_locate::LocatedSpan;
 
 pub use attribute::Attribute;
@@ -30,8 +29,8 @@ pub use version::Version;
 
 type Span<'a> = LocatedSpan<&'a str>;
 
-#[derive(Debug, Fail)]
-pub enum SDPError {
-    #[fail(display = "invalid session description")]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("invalid session description")]
     InvalidSessionDescription,
 }
