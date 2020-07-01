@@ -1,6 +1,8 @@
-use std::default::Default;
-use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::thread::{self, JoinHandle};
+use std::{
+    default::Default,
+    net::{IpAddr, SocketAddr, UdpSocket},
+    thread::{self, JoinHandle},
+};
 
 use fehler::throws;
 use log::{debug, trace, warn};
@@ -26,8 +28,22 @@ fn rand_ice_string(length: usize) -> String {
     String::from_utf8(random_chars).unwrap()
 }
 
+fn get_local_addrs() -> Vec<IpAddr> {
+    datalink::interfaces()
+        .into_iter()
+        .flat_map(|i| {
+            if i.is_up() && !i.is_loopback() {
+                i.ips
+            } else {
+                vec![]
+            }
+        })
+        .filter_map(|a| if a.is_ipv4() { Some(a.ip()) } else { None })
+        .collect()
+}
+
 #[throws]
-fn udp_listener(address: IpAddr, key: String) -> (SocketAddr, JoinHandle<()>) {
+fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
     debug!("Starting UDP listener on {}", address);
 
     let socket =
@@ -35,6 +51,7 @@ fn udp_listener(address: IpAddr, key: String) -> (SocketAddr, JoinHandle<()>) {
     let local_addr = socket.local_addr().unwrap();
     debug!("Socket bound to {}", local_addr);
 
+    let key = key.to_string();
     let handle = thread::spawn(move || {
         let local_addr = socket.local_addr().unwrap();
         let mut buf = [0; MTU];
@@ -108,6 +125,7 @@ struct Candidate {
 pub struct Agent {
     username: String,
     password: String,
+    local_addrs: Vec<IpAddr>,
     candidates: Vec<Candidate>,
     thread_handles: Vec<JoinHandle<()>>,
 }
@@ -117,6 +135,7 @@ impl Default for Agent {
         Self {
             username: rand_ice_string(4),
             password: rand_ice_string(22),
+            local_addrs: get_local_addrs(),
             candidates: vec![],
             thread_handles: vec![],
         }
@@ -137,23 +156,15 @@ impl Agent {
     }
 
     pub fn gather(&mut self) {
-        let interfaces: Vec<_> = datalink::interfaces()
-            .into_iter()
-            .filter(|i| i.is_up() && !i.is_loopback())
-            .flat_map(|i| i.ips)
-            .filter(|a| a.is_ipv4())
-            .map(|a| a.ip())
-            .collect();
-
-        for interface in interfaces {
-            if let Ok((address, handle)) = udp_listener(interface, self.password.clone()) {
+        for local_addr in &self.local_addrs {
+            if let Ok((address, handle)) = udp_listener(local_addr, &self.password) {
                 let candidate = Candidate { address };
                 self.candidates.push(candidate);
                 self.thread_handles.push(handle);
 
                 break; // we only want one for now
             } else {
-                warn!("Unable to gather local candidate on {}", interface);
+                warn!("Unable to gather local candidate on {}", local_addr);
             }
         }
     }
