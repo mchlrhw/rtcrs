@@ -1,11 +1,11 @@
 use std::{
     default::Default,
-    net::{IpAddr, SocketAddr, UdpSocket},
-    thread::{self, JoinHandle},
+    net::{IpAddr, SocketAddr},
 };
 
+use async_std::{net::UdpSocket, task};
 use fehler::throws;
-use log::{debug, trace, warn};
+use log::{trace, warn};
 use pnet::datalink;
 use rand::{self, seq::SliceRandom};
 
@@ -28,7 +28,7 @@ fn rand_ice_string(length: usize) -> String {
     String::from_utf8(random_chars).unwrap()
 }
 
-fn get_local_addrs() -> Vec<IpAddr> {
+fn local_addrs() -> Vec<IpAddr> {
     datalink::interfaces()
         .into_iter()
         .flat_map(|i| {
@@ -42,92 +42,122 @@ fn get_local_addrs() -> Vec<IpAddr> {
         .collect()
 }
 
-#[throws]
-fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
-    debug!("Starting UDP listener on {}", address);
+// #[throws]
+// fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
+//     debug!("Starting UDP listener on {}", address);
 
-    let socket =
-        UdpSocket::bind(format!("{}:0", address)).map_err(|source| Error::BindError { source })?;
-    let local_addr = socket.local_addr().unwrap();
-    debug!("Socket bound to {}", local_addr);
+//     let socket =
+//         UdpSocket::bind(format!("{}:0", address)).map_err(|source| Error::BindError { source })?;
+//     let local_addr = socket.local_addr().unwrap();
+//     debug!("Socket bound to {}", local_addr);
 
-    let key = key.to_string();
-    let handle = thread::spawn(move || {
-        let local_addr = socket.local_addr().unwrap();
-        let mut buf = [0; MTU];
-        loop {
-            let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
-            trace!(
-                "Received {} bytes from {} on {}: {:02X?}",
-                bytes_rcvd,
-                src_addr,
-                local_addr,
-                buf[..bytes_rcvd].to_vec()
-            );
+//     let key = key.to_string();
+//     let handle = thread::spawn(move || {
+//         let local_addr = socket.local_addr().unwrap();
+//         let mut buf = [0; MTU];
+//         loop {
+//             let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
+//             trace!(
+//                 "Received {} bytes from {} on {}: {:02X?}",
+//                 bytes_rcvd,
+//                 src_addr,
+//                 local_addr,
+//                 buf[..bytes_rcvd].to_vec()
+//             );
 
-            let (_, message) = stun::message(&buf[..bytes_rcvd]).unwrap();
-            debug!("Received connectivity check: {:?}", message);
+//             let (_, message) = stun::message(&buf[..bytes_rcvd]).unwrap();
+//             debug!("Received connectivity check: {:?}", message);
 
-            if message.header.method != stun::Method::Binding
-                && message.header.class != stun::Class::Request
-            {
-                continue;
-            }
+//             if message.header.method != stun::Method::Binding
+//                 && message.header.class != stun::Class::Request
+//             {
+//                 continue;
+//             }
 
-            let mut maybe_username = None;
-            for attribute in message.attributes {
-                match attribute {
-                    stun::Attribute::Username(u) => {
-                        maybe_username = Some(u);
-                        break;
-                    }
-                    _ => continue,
-                }
-            }
+//             let mut maybe_username = None;
+//             for attribute in message.attributes {
+//                 match attribute {
+//                     stun::Attribute::Username(u) => {
+//                         maybe_username = Some(u);
+//                         break;
+//                     }
+//                     _ => continue,
+//                 }
+//             }
 
-            let username = match maybe_username {
-                Some(u) => u,
-                None => continue,
-            };
+//             let username = match maybe_username {
+//                 Some(u) => u,
+//                 None => continue,
+//             };
 
-            let reply = stun::Message::base(stun::Header {
-                class: stun::Class::Success,
-                method: stun::Method::Binding,
-                length: 0,
-                transaction_id: message.header.transaction_id,
-            })
-            .with_attributes(vec![
-                stun::Attribute::username(username.as_str()),
-                stun::Attribute::xor_mapped_address(src_addr.ip(), src_addr.port()),
-            ])
-            .with_message_integrity(key.as_ref())
-            .with_fingerprint();
+//             let reply = stun::Message::base(stun::Header {
+//                 class: stun::Class::Success,
+//                 method: stun::Method::Binding,
+//                 length: 0,
+//                 transaction_id: message.header.transaction_id,
+//             })
+//             .with_attributes(vec![
+//                 stun::Attribute::username(username.as_str()),
+//                 stun::Attribute::xor_mapped_address(src_addr.ip(), src_addr.port()),
+//             ])
+//             .with_message_integrity(key.as_ref())
+//             .with_fingerprint();
 
-            trace!("Prepared reply: {:?}", reply);
+//             trace!("Prepared reply: {:?}", reply);
 
-            let reply = reply.to_bytes();
+//             let reply = reply.to_bytes();
 
-            trace!("Sending reply: {:02X?}", reply.to_vec());
+//             trace!("Sending reply: {:02X?}", reply.to_vec());
 
-            socket.send_to(&reply, src_addr).unwrap();
-        }
-    });
+//             socket.send_to(&reply, src_addr).unwrap();
+//         }
+//     });
 
-    (local_addr, handle)
-}
+//     (local_addr, handle)
+// }
 
 #[derive(Clone, Debug, PartialEq)]
-struct Candidate {
+struct LocalCandidate {
     address: SocketAddr,
+}
+
+async fn candidate_loop(socket: UdpSocket) {
+    // TODO: Remove this unwrap.
+    let local_addr = socket.local_addr().unwrap();
+    let mut buf = [0; MTU];
+    loop {
+        let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).await.unwrap();
+        trace!(
+            "Received {} bytes from {} on {}: {:02X?}",
+            bytes_rcvd,
+            src_addr,
+            local_addr,
+            buf[..bytes_rcvd].to_vec()
+        );
+    }
+}
+
+impl LocalCandidate {
+    #[throws]
+    async fn bind(ip_addr: IpAddr) -> Self {
+        let socket = UdpSocket::bind(format!("{}:0", ip_addr))
+            .await
+            .map_err(|source| Error::BindError { source })?;
+        let address = socket
+            .local_addr()
+            .map_err(|source| Error::BindError { source })?;
+
+        task::spawn(candidate_loop(socket));
+
+        Self { address }
+    }
 }
 
 #[derive(Debug)]
 pub struct Agent {
     username: String,
     password: String,
-    local_addrs: Vec<IpAddr>,
-    candidates: Vec<Candidate>,
-    thread_handles: Vec<JoinHandle<()>>,
+    candidates: Vec<LocalCandidate>,
 }
 
 impl Default for Agent {
@@ -135,9 +165,7 @@ impl Default for Agent {
         Self {
             username: rand_ice_string(4),
             password: rand_ice_string(22),
-            local_addrs: get_local_addrs(),
             candidates: vec![],
-            thread_handles: vec![],
         }
     }
 }
@@ -155,16 +183,12 @@ impl Agent {
         self.password.clone()
     }
 
-    pub fn gather(&mut self) {
-        for local_addr in &self.local_addrs {
-            if let Ok((address, handle)) = udp_listener(local_addr, &self.password) {
-                let candidate = Candidate { address };
+    pub async fn gather(&mut self) {
+        for ip_addr in local_addrs() {
+            if let Ok(candidate) = LocalCandidate::bind(ip_addr).await {
                 self.candidates.push(candidate);
-                self.thread_handles.push(handle);
-
-                break; // we only want one for now
             } else {
-                warn!("Unable to gather local candidate on {}", local_addr);
+                warn!("Unable to gather local candidate on {}", ip_addr);
             }
         }
     }
@@ -175,12 +199,6 @@ impl Agent {
             .enumerate()
             .map(|(f, c)| encode_as_sdp(f, c.address))
             .collect()
-    }
-
-    pub fn wait_till_completion(self) {
-        for handle in self.thread_handles {
-            handle.join().unwrap();
-        }
     }
 }
 

@@ -1,4 +1,5 @@
-fn main() {
+#[async_std::main]
+async fn main() {
     env_logger::init();
 
     let mut ice_agent = ice::Agent::new();
@@ -6,7 +7,7 @@ fn main() {
     let ice_ufrag = ice_agent.username();
     let ice_pwd = ice_agent.password();
 
-    ice_agent.gather();
+    ice_agent.gather().await;
     let mut candidates = ice_agent.candidate_attributes();
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
@@ -77,6 +78,4 @@ fn main() {
     let sdp_string = session_description.to_string().escape_default().to_string();
     let answer = format!(r#"{{"type": "answer", "sdp": "{}"}}"#, sdp_string);
     println!("{}", base64::encode(&answer));
-
-    ice_agent.wait_till_completion();
 }
