@@ -171,8 +171,7 @@ impl Agent {
 
     pub fn candidate_attributes(&self) -> Vec<sdp::Attribute> {
         self.candidates
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(f, c)| encode_as_sdp(f, c.address))
             .collect()
