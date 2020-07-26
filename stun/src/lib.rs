@@ -161,6 +161,12 @@ impl TransactionId {
     }
 }
 
+impl Default for TransactionId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TryFrom<&[u8]> for TransactionId {
     type Error = StunError;
 
