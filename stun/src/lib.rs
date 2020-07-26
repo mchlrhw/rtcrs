@@ -167,6 +167,12 @@ impl Default for TransactionId {
     }
 }
 
+impl From<[u8; TRANSACTION_ID_LEN]> for TransactionId {
+    fn from(buf: [u8; TRANSACTION_ID_LEN]) -> Self {
+        Self(buf)
+    }
+}
+
 impl TryFrom<&[u8]> for TransactionId {
     type Error = StunError;
 
@@ -391,7 +397,7 @@ mod tests {
             class: Class::Success,
             method: Method::Binding,
             length: 0,
-            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            transaction_id: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into(),
         };
         let actual = header(&input).unwrap().1;
         assert_eq!(expected, actual);
@@ -403,7 +409,7 @@ mod tests {
             class: Class::Success,
             method: Method::Binding,
             length: 0,
-            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            transaction_id: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into(),
         };
         #[rustfmt::skip]
         let expected = vec![
@@ -423,7 +429,7 @@ mod tests {
             class: Class::Success,
             method: Method::Binding,
             length: 0,
-            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            transaction_id: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into(),
         })
         .with_message_integrity(&[1, 2, 3, 4]);
 
@@ -436,7 +442,7 @@ mod tests {
             class: Class::Success,
             method: Method::Binding,
             length: 0,
-            transaction_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            transaction_id: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into(),
         })
         .with_attributes(vec![Attribute::username("knuth")])
         .with_message_integrity(&[1, 2, 3, 4]);
