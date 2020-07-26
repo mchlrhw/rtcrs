@@ -147,8 +147,10 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8
 
 const TRANSACTION_ID_LEN: usize = 12;
 
+type TransactionIdBuf = [u8; TRANSACTION_ID_LEN];
+
 #[derive(Debug, PartialEq)]
-pub struct TransactionId([u8; TRANSACTION_ID_LEN]);
+pub struct TransactionId(TransactionIdBuf);
 
 impl TransactionId {
     pub fn new() -> Self {
@@ -167,8 +169,8 @@ impl Default for TransactionId {
     }
 }
 
-impl From<[u8; TRANSACTION_ID_LEN]> for TransactionId {
-    fn from(buf: [u8; TRANSACTION_ID_LEN]) -> Self {
+impl From<TransactionIdBuf> for TransactionId {
+    fn from(buf: TransactionIdBuf) -> Self {
         Self(buf)
     }
 }
