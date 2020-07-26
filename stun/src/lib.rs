@@ -16,6 +16,7 @@ use nom::{
     sequence::{preceded, terminated, tuple},
     IResult,
 };
+use rand::Rng;
 
 pub use crate::attribute::Attribute;
 use crate::attribute::{
@@ -80,15 +81,51 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method)> {
     Ok((remainder, (class, method)))
 }
 
+const TRANSACTION_ID_LEN: usize = 12;
+
+#[derive(Debug, PartialEq)]
+pub struct TransactionId([u8; TRANSACTION_ID_LEN]);
+
+impl TransactionId {
+    pub fn new() -> Self {
+        let rng = &mut rand::thread_rng();
+
+        let mut transaction_id = [0u8; TRANSACTION_ID_LEN];
+        rng.fill(&mut transaction_id);
+
+        Self(transaction_id)
+    }
+}
+
+impl From<&[u8]> for TransactionId {
+    fn from(bytes: &[u8]) -> Self {
+        assert!(bytes.len() > TRANSACTION_ID_LEN);
+
+        let mut buf = [0u8; TRANSACTION_ID_LEN];
+        buf.copy_from_slice(bytes);
+
+        TransactionId(buf)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Header {
     pub class: Class,
     pub method: Method,
     pub length: u16,
-    pub transaction_id: Vec<u8>,
+    pub transaction_id: TransactionId,
 }
 
 impl Header {
+    pub fn new(class: Class, method: Method, transaction_id: TransactionId) -> Self {
+        Self {
+            class,
+            method,
+            length: 0,
+            transaction_id,
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let c = match self.class {
             Class::Request => 0b_00,
@@ -114,13 +151,13 @@ impl Header {
         header_bytes.extend(&mt.to_be_bytes());
         header_bytes.extend(&self.length.to_be_bytes());
         header_bytes.extend(&MAGIC_COOKIE.to_be_bytes());
-        header_bytes.extend(&self.transaction_id);
+        header_bytes.extend(&self.transaction_id.0);
 
         header_bytes
     }
 }
 
-type HeaderArgs = ((Class, Method), u16, Vec<u8>);
+type HeaderArgs = ((Class, Method), u16, TransactionId);
 
 impl Header {
     fn from_tuple(args: HeaderArgs) -> Self {
@@ -153,7 +190,7 @@ pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
         tuple((
             map_parser(take_bytes(2_usize), message_type),
             terminated(be_u16, tag_bytes(MAGIC_COOKIE.to_be_bytes())),
-            map(take_bytes(12_usize), Vec::from),
+            map(take_bytes(TRANSACTION_ID_LEN), TransactionId::from),
         )),
         Header::from_tuple,
     )(input)
