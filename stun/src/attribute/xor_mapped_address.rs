@@ -73,7 +73,9 @@ impl Tlv for XorMappedAddress {
 //         Figure 6: Format of XOR-MAPPED-ADDRESS Attribute
 //
 // https://tools.ietf.org/html/rfc5389#section-15.2
-pub(crate) fn xor_mapped_address(input: &[u8]) -> IResult<&[u8], Attribute> {
+pub(crate) fn xor_mapped_address(
+    input: &[u8],
+) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
     let (remainder, value_field) = preceded(tag(TYPE.to_be_bytes()), length_data(be_u16))(input)?;
     let (x_address_field, (mut family_field, x_port_field)) = tuple((be_u16, be_u16))(value_field)?;
 

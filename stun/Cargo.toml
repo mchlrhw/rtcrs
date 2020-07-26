@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 crc = "1.8"
+fehler = "1.0"
 nom = "5"
 rust-crypto = "0.2"
 rand = "0.7"
+thiserror = "1.0"

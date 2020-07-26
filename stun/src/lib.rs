@@ -1,9 +1,10 @@
 mod attribute;
 
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use crc::crc32;
 use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
+use fehler::{throw, throws};
 use nom::{
     bits::{
         bits,
@@ -25,17 +26,86 @@ use crate::attribute::{
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
 
-#[derive(Debug, PartialEq)]
-pub enum Method {
-    Binding,
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum StunError {
+    #[error("invalid method ({0})")]
+    InvalidMethod(u16),
+    #[error("invalid class ({0})")]
+    InvalidClass(u8),
+    #[error("invalid transaction id ({0:?})")]
+    InvalidTransactionId(Vec<u8>),
 }
 
 #[derive(Debug, PartialEq)]
+pub enum ParseError<I> {
+    Stun(StunError),
+    Nom(I, nom::error::ErrorKind),
+}
+
+impl<I> From<StunError> for ParseError<I> {
+    fn from(err: StunError) -> Self {
+        Self::Stun(err)
+    }
+}
+
+impl<I> nom::error::ParseError<I> for ParseError<I> {
+    fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
+        Self::Nom(input, kind)
+    }
+
+    fn append(_: I, _: nom::error::ErrorKind, other: Self) -> Self {
+        other
+    }
+}
+
+impl<I> nom::ErrorConvert<ParseError<I>> for ((I, usize), nom::error::ErrorKind) {
+    fn convert(self) -> ParseError<I> {
+        ParseError::Nom((self.0).0, self.1)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Method {
+    Binding = 0b_0000_0000_0001,
+}
+
+impl TryFrom<u16> for Method {
+    type Error = StunError;
+
+    #[throws(StunError)]
+    fn try_from(val: u16) -> Self {
+        // TODO: Rewrite this to use the discriminants from the enum
+        //       instead of restating them here.
+        match val {
+            0b_0000_0000_0001 => Self::Binding,
+            _ => throw!(StunError::InvalidMethod(val)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Class {
-    Error,
-    Indication,
-    Request,
-    Success,
+    Request = 0b_00,
+    Indication = 0b_01,
+    Success = 0b_10,
+    Error = 0b_11,
+}
+
+impl TryFrom<u8> for Class {
+    type Error = StunError;
+
+    #[throws(StunError)]
+    fn try_from(val: u8) -> Self {
+        // TODO: Rewrite this to use the discriminants from the enum
+        //       instead of restating them here.
+        match val {
+            0b_00 => Self::Request,
+            0b_01 => Self::Indication,
+            0b_10 => Self::Success,
+            0b_11 => Self::Error,
+            _ => throw!(StunError::InvalidClass(val)),
+        }
+    }
 }
 
 //         0                 1
@@ -49,8 +119,8 @@ pub enum Class {
 // Figure 3: Format of STUN Message Type Field
 //
 // https://tools.ietf.org/html/rfc5389#section-6
-fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method)> {
-    let (remainder, (m_11_7, c_1, m_6_4, c_0, m_3_0)): (&[u8], (u8, u8, u8, u8, u8)) =
+fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8]>> {
+    let (remainder, (m_11_7, c_1, m_6_4, c_0, m_3_0)): (&[u8], (u16, u8, u16, u8, u16)) =
         bits::<_, _, (_, _), _, _>(preceded(
             tag_bits(0b_00, 2_usize),
             tuple((
@@ -63,20 +133,14 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method)> {
         ))(input)?;
 
     let c = (c_1 << 1) | c_0;
-    let class = match c {
-        0b_00 => Class::Request,
-        0b_01 => Class::Indication,
-        0b_10 => Class::Success,
-        0b_11 => Class::Error,
-        _ => unreachable!(),
-    };
+    let class = c
+        .try_into()
+        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
 
     let m = (m_11_7 << 6) | (m_6_4 << 3) | m_3_0;
-    let method = match m {
-        0b_0000_0000_0001 => Method::Binding,
-        // TODO: return Err here
-        _ => unimplemented!(),
-    };
+    let method = m
+        .try_into()
+        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
 
     Ok((remainder, (class, method)))
 }
@@ -97,15 +161,29 @@ impl TransactionId {
     }
 }
 
-impl From<&[u8]> for TransactionId {
-    fn from(bytes: &[u8]) -> Self {
-        assert!(bytes.len() > TRANSACTION_ID_LEN);
+impl TryFrom<&[u8]> for TransactionId {
+    type Error = StunError;
+
+    #[throws(StunError)]
+    fn try_from(bytes: &[u8]) -> Self {
+        if bytes.len() != TRANSACTION_ID_LEN {
+            throw!(StunError::InvalidTransactionId(bytes.to_vec()));
+        }
 
         let mut buf = [0u8; TRANSACTION_ID_LEN];
         buf.copy_from_slice(bytes);
 
         TransactionId(buf)
     }
+}
+
+fn transaction_id(input: &[u8]) -> IResult<&[u8], TransactionId, ParseError<&[u8]>> {
+    let (remainder, bytes) = take_bytes(TRANSACTION_ID_LEN)(input)?;
+    let transaction_id = bytes
+        .try_into()
+        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
+
+    Ok((remainder, transaction_id))
 }
 
 #[derive(Debug, PartialEq)]
@@ -127,16 +205,8 @@ impl Header {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let c = match self.class {
-            Class::Request => 0b_00,
-            Class::Indication => 0b_01,
-            Class::Success => 0b_10,
-            Class::Error => 0b_11,
-        };
-
-        let m = match self.method {
-            Method::Binding => 0b_0000_0000_0001,
-        };
+        let c = self.class as u16;
+        let m = self.method as u16;
 
         let c_0 = c & 0b_01;
         let c_1 = (c & 0b_10) >> 1;
@@ -145,7 +215,7 @@ impl Header {
         let m_6_4 = (m & 0b_0000_0111_0000) >> 4;
         let m_11_7 = (m & 0b_1111_1000_0000) >> 7;
 
-        let mt: u16 = (m_11_7 << 9) | (c_1 << 8) | (m_6_4 << 5) | (c_0 << 4) | m_3_0;
+        let mt = (m_11_7 << 9) | (c_1 << 8) | (m_6_4 << 5) | (c_0 << 4) | m_3_0;
 
         let mut header_bytes = vec![];
         header_bytes.extend(&mt.to_be_bytes());
@@ -185,12 +255,12 @@ impl Header {
 //             Figure 2: Format of STUN Message Header
 //
 // https://tools.ietf.org/html/rfc5389#section-6
-pub fn header(input: &[u8]) -> IResult<&[u8], Header> {
+pub fn header(input: &[u8]) -> IResult<&[u8], Header, ParseError<&[u8]>> {
     map(
         tuple((
             map_parser(take_bytes(2_usize), message_type),
             terminated(be_u16, tag_bytes(MAGIC_COOKIE.to_be_bytes())),
-            map(take_bytes(TRANSACTION_ID_LEN), TransactionId::from),
+            transaction_id,
         )),
         Header::from_tuple,
     )(input)
@@ -213,7 +283,7 @@ impl Message {
     }
 }
 
-pub fn message(input: &[u8]) -> IResult<&[u8], Message> {
+pub fn message(input: &[u8]) -> IResult<&[u8], Message, ParseError<&[u8]>> {
     let (remainder, message) =
         all_consuming(map(tuple((header, many0(attribute))), Message::from_tuple))(input)?;
 

@@ -24,7 +24,9 @@ impl Tlv for ComprehensionOptional {
     }
 }
 
-pub(crate) fn comprehension_optional(input: &[u8]) -> IResult<&[u8], Attribute> {
+pub(crate) fn comprehension_optional(
+    input: &[u8],
+) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
     let (remainder, (typ, value_field)) = tuple((be_u16, length_data(be_u16)))(input)?;
 
     // TODO: assert that typ is within the comprehension optional range

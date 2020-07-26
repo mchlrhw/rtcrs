@@ -34,7 +34,7 @@ impl Tlv for Fingerprint {
     }
 }
 
-pub(crate) fn fingerprint(input: &[u8]) -> IResult<&[u8], Attribute> {
+pub(crate) fn fingerprint(input: &[u8]) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
     let (remainder, value_field) = preceded(tag(TYPE.to_be_bytes()), length_data(be_u16))(input)?;
 
     // TODO: return Err here
