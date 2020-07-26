@@ -90,12 +90,11 @@ fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
                 None => continue,
             };
 
-            let reply = stun::Message::base(stun::Header {
-                class: stun::Class::Success,
-                method: stun::Method::Binding,
-                length: 0,
-                transaction_id: message.header.transaction_id,
-            })
+            let reply = stun::Message::base(stun::Header::new(
+                stun::Class::Success,
+                stun::Method::Binding,
+                message.header.transaction_id,
+            ))
             .with_attributes(vec![
                 stun::Attribute::username(username.as_str()),
                 stun::Attribute::xor_mapped_address(src_addr.ip(), src_addr.port()),
