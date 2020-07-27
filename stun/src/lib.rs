@@ -17,6 +17,7 @@ use nom::{
     sequence::{preceded, terminated, tuple},
     IResult,
 };
+use num_enum::TryFromPrimitive;
 use rand::Rng;
 
 pub use crate::attribute::Attribute;
@@ -64,48 +65,19 @@ impl<I> nom::ErrorConvert<ParseError<I>> for ((I, usize), nom::error::ErrorKind)
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, TryFromPrimitive)]
+#[repr(u16)]
 pub enum Method {
     Binding = 0b_0000_0000_0001,
 }
 
-impl TryFrom<u16> for Method {
-    type Error = Error;
-
-    #[throws]
-    fn try_from(val: u16) -> Self {
-        // TODO: Rewrite this to use the discriminants from the enum
-        //       instead of restating them here.
-        match val {
-            0b_0000_0000_0001 => Self::Binding,
-            _ => throw!(Error::InvalidMethod(val)),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum Class {
     Request = 0b_00,
     Indication = 0b_01,
     Success = 0b_10,
     Error = 0b_11,
-}
-
-impl TryFrom<u8> for Class {
-    type Error = Error;
-
-    #[throws]
-    fn try_from(val: u8) -> Self {
-        // TODO: Rewrite this to use the discriminants from the enum
-        //       instead of restating them here.
-        match val {
-            0b_00 => Self::Request,
-            0b_01 => Self::Indication,
-            0b_10 => Self::Success,
-            0b_11 => Self::Error,
-            _ => throw!(Error::InvalidClass(val)),
-        }
-    }
 }
 
 //         0                 1
@@ -135,12 +107,12 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8
     let c = (c_1 << 1) | c_0;
     let class = c
         .try_into()
-        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
+        .map_err(|_| nom::Err::Error(Error::InvalidClass(c).into()))?;
 
     let m = (m_11_7 << 6) | (m_6_4 << 3) | m_3_0;
     let method = m
         .try_into()
-        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
+        .map_err(|_| nom::Err::Error(Error::InvalidMethod(m).into()))?;
 
     Ok((remainder, (class, method)))
 }
