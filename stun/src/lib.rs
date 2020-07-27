@@ -27,7 +27,7 @@ use crate::attribute::{
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-pub enum StunError {
+pub enum Error {
     #[error("invalid method ({0})")]
     InvalidMethod(u16),
     #[error("invalid class ({0})")]
@@ -38,12 +38,12 @@ pub enum StunError {
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError<I> {
-    Stun(StunError),
+    Stun(Error),
     Nom(I, nom::error::ErrorKind),
 }
 
-impl<I> From<StunError> for ParseError<I> {
-    fn from(err: StunError) -> Self {
+impl<I> From<Error> for ParseError<I> {
+    fn from(err: Error) -> Self {
         Self::Stun(err)
     }
 }
@@ -70,15 +70,15 @@ pub enum Method {
 }
 
 impl TryFrom<u16> for Method {
-    type Error = StunError;
+    type Error = Error;
 
-    #[throws(StunError)]
+    #[throws]
     fn try_from(val: u16) -> Self {
         // TODO: Rewrite this to use the discriminants from the enum
         //       instead of restating them here.
         match val {
             0b_0000_0000_0001 => Self::Binding,
-            _ => throw!(StunError::InvalidMethod(val)),
+            _ => throw!(Error::InvalidMethod(val)),
         }
     }
 }
@@ -92,9 +92,9 @@ pub enum Class {
 }
 
 impl TryFrom<u8> for Class {
-    type Error = StunError;
+    type Error = Error;
 
-    #[throws(StunError)]
+    #[throws]
     fn try_from(val: u8) -> Self {
         // TODO: Rewrite this to use the discriminants from the enum
         //       instead of restating them here.
@@ -103,7 +103,7 @@ impl TryFrom<u8> for Class {
             0b_01 => Self::Indication,
             0b_10 => Self::Success,
             0b_11 => Self::Error,
-            _ => throw!(StunError::InvalidClass(val)),
+            _ => throw!(Error::InvalidClass(val)),
         }
     }
 }
@@ -176,12 +176,12 @@ impl From<TransactionIdBuf> for TransactionId {
 }
 
 impl TryFrom<&[u8]> for TransactionId {
-    type Error = StunError;
+    type Error = Error;
 
-    #[throws(StunError)]
+    #[throws]
     fn try_from(bytes: &[u8]) -> Self {
         if bytes.len() != TRANSACTION_ID_LEN {
-            throw!(StunError::InvalidTransactionId(bytes.to_vec()));
+            throw!(Error::InvalidTransactionId(bytes.to_vec()));
         }
 
         let mut buf = [0u8; TRANSACTION_ID_LEN];
