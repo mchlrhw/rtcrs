@@ -119,7 +119,7 @@ impl Tlv for Attribute {
 //               Figure 4: Format of STUN Attributes
 //
 // https://tools.ietf.org/html/rfc5389#section-15
-pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute> {
+pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
     alt((
         // Comprehension-required range (0x0000-0x7FFF)
         // 0x0000: (Reserved)

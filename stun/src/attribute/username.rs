@@ -42,7 +42,7 @@ impl Tlv for Username {
     }
 }
 
-pub(crate) fn username(input: &[u8]) -> IResult<&[u8], Attribute> {
+pub(crate) fn username(input: &[u8]) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
     let (remainder, value_field) = preceded(tag(TYPE.to_be_bytes()), length_data(be_u16))(input)?;
 
     let pad_len = (4 - (value_field.len() % 4)) % 4;
