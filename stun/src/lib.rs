@@ -22,7 +22,7 @@ use rand::Rng;
 
 pub use crate::attribute::Attribute;
 use crate::attribute::{
-    attribute, fingerprint::Fingerprint, message_integrity::MessageIntegrity, Tlv,
+    attribute, fingerprint::Fingerprint, Tlv,
 };
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
@@ -35,6 +35,8 @@ pub enum Error {
     InvalidClass(u8),
     #[error("invalid transaction id ({0:?})")]
     InvalidTransactionId(Vec<u8>),
+    #[error("invalid message integrity ({0:?})")]
+    InvalidMessageIntegrity(Vec<u8>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -167,7 +169,7 @@ impl TryFrom<&[u8]> for TransactionId {
         let mut buf = [0u8; TRANSACTION_ID_LEN];
         buf.copy_from_slice(bytes);
 
-        TransactionId(buf)
+        Self(buf)
     }
 }
 
@@ -325,9 +327,12 @@ impl Message {
 
         let mut mac = Hmac::new(Sha1::new(), key);
         mac.input(&self.to_bytes());
-        let code = mac.result().code().to_vec();
 
-        let inner = MessageIntegrity::new(code);
+        let inner = mac
+            .result()
+            .code()
+            .try_into()
+            .expect("hmac generated an invalid message integrity");
         let attribute = Attribute::MessageIntegrity(inner);
 
         self.attributes.push(attribute);
