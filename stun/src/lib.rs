@@ -14,7 +14,7 @@ use nom::{
     combinator::{all_consuming, map, map_parser},
     multi::many0,
     number::complete::be_u16,
-    sequence::{preceded, terminated, tuple},
+    sequence::{preceded, tuple},
     IResult,
 };
 use num_enum::TryFromPrimitive;
@@ -115,6 +115,14 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8
         .map_err(|_| nom::Err::Error(Error::InvalidMethod(m).into()))?;
 
     Ok((remainder, (class, method)))
+}
+
+fn message_length(input: &[u8]) -> IResult<&[u8], u16, ParseError<&[u8]>> {
+    be_u16(input)
+}
+
+fn magic_cookie(input: &[u8]) -> IResult<&[u8], &[u8], ParseError<&[u8]>> {
+    tag_bytes(MAGIC_COOKIE.to_be_bytes())(input)
 }
 
 const TRANSACTION_ID_LEN: usize = 12;
@@ -244,9 +252,9 @@ impl Header {
 pub fn header(input: &[u8]) -> IResult<&[u8], Header, ParseError<&[u8]>> {
     map(
         tuple((
-            map_parser(take_bytes(2_usize), message_type),
-            terminated(be_u16, tag_bytes(MAGIC_COOKIE.to_be_bytes())),
-            transaction_id,
+            message_type,
+            message_length,
+            preceded(magic_cookie, transaction_id),
         )),
         Header::from_tuple,
     )(input)
@@ -258,23 +266,12 @@ pub struct Message {
     pub attributes: Vec<Attribute>,
 }
 
-type MessageArgs = (Header, Vec<Attribute>);
-
-impl Message {
-    fn from_tuple(args: MessageArgs) -> Self {
-        Self {
-            header: args.0,
-            attributes: args.1,
-        }
-    }
-}
-
 pub fn message(input: &[u8]) -> IResult<&[u8], Message, ParseError<&[u8]>> {
-    let (remainder, message) =
-        all_consuming(map(tuple((header, many0(attribute))), Message::from_tuple))(input)?;
+    let (remainder, header) = header(input)?;
+    let (remainder, attributes) =
+        map_parser(take_bytes(header.length), all_consuming(many0(attribute)))(remainder)?;
 
-    // TODO: if MessageIntegrity in attributes, check input against it
-    // TODO: if Fingerprint in attributes, check input against it
+    let message = Message { header, attributes };
 
     Ok((remainder, message))
 }
