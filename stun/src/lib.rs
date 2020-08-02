@@ -21,9 +21,7 @@ use num_enum::TryFromPrimitive;
 use rand::Rng;
 
 pub use crate::attribute::Attribute;
-use crate::attribute::{
-    attribute, fingerprint::Fingerprint, Tlv,
-};
+use crate::attribute::{attribute, fingerprint::Fingerprint, Tlv};
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
 
@@ -37,6 +35,8 @@ pub enum Error {
     InvalidTransactionId(Vec<u8>),
     #[error("invalid message integrity ({0:?})")]
     InvalidMessageIntegrity(Vec<u8>),
+    #[error("unimplemented attribute ({0})")]
+    UnimplementedAttribute(u16),
 }
 
 #[derive(Debug, PartialEq)]
