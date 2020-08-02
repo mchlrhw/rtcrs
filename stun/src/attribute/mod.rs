@@ -1,4 +1,5 @@
 mod comprehension_optional;
+mod error_code;
 pub(crate) mod fingerprint;
 pub(crate) mod message_integrity;
 mod priority;
@@ -12,6 +13,7 @@ use nom::{combinator::peek, number::complete::be_u16, IResult};
 use crate::{
     attribute::{
         comprehension_optional::{comprehension_optional, ComprehensionOptional},
+        error_code::{error_code, ErrorCode},
         fingerprint::{fingerprint, Fingerprint},
         message_integrity::{message_integrity, MessageIntegrity},
         priority::{priority, Priority},
@@ -44,6 +46,7 @@ pub trait Tlv {
 #[derive(Debug, PartialEq)]
 pub enum Attribute {
     ComprehensionOptional(ComprehensionOptional),
+    ErrorCode(ErrorCode),
     Fingerprint(Fingerprint),
     MessageIntegrity(MessageIntegrity),
     Priority(Priority),
@@ -69,6 +72,7 @@ impl Tlv for Attribute {
     fn typ(&self) -> u16 {
         match self {
             Self::ComprehensionOptional(inner) => inner.typ(),
+            Self::ErrorCode(inner) => inner.typ(),
             Self::Fingerprint(inner) => inner.typ(),
             Self::MessageIntegrity(inner) => inner.typ(),
             Self::Priority(inner) => inner.typ(),
@@ -80,6 +84,7 @@ impl Tlv for Attribute {
     fn length(&self) -> u16 {
         match self {
             Self::ComprehensionOptional(inner) => inner.length(),
+            Self::ErrorCode(inner) => inner.length(),
             Self::Fingerprint(inner) => inner.length(),
             Self::MessageIntegrity(inner) => inner.length(),
             Self::Priority(inner) => inner.length(),
@@ -91,6 +96,7 @@ impl Tlv for Attribute {
     fn value(&self) -> Vec<u8> {
         match self {
             Self::ComprehensionOptional(inner) => inner.value(),
+            Self::ErrorCode(inner) => inner.value(),
             Self::Fingerprint(inner) => inner.value(),
             Self::MessageIntegrity(inner) => inner.value(),
             Self::Priority(inner) => inner.value(),
@@ -102,6 +108,7 @@ impl Tlv for Attribute {
     fn to_bytes(&self) -> Vec<u8> {
         match self {
             Self::ComprehensionOptional(inner) => inner.to_bytes(),
+            Self::ErrorCode(inner) => inner.to_bytes(),
             Self::Fingerprint(inner) => inner.to_bytes(),
             Self::MessageIntegrity(inner) => inner.to_bytes(),
             Self::Priority(inner) => inner.to_bytes(),
@@ -139,7 +146,7 @@ pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute, crate::ParseE
         0x_0006 => username,
         // 0x0007: (Reserved; was PASSWORD)
         0x_0008 => message_integrity,
-        // 0x0009: ERROR-CODE
+        0x_0009 => error_code,
         // 0x000A: UNKNOWN-ATTRIBUTES
         // 0x000B: (Reserved; was REFLECTED-FROM)
         // 0x000C: CHANNEL-NUMBER

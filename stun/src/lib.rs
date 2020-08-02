@@ -27,14 +27,16 @@ const MAGIC_COOKIE: u32 = 0x_2112_A442;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
-    #[error("invalid method ({0})")]
-    InvalidMethod(u16),
     #[error("invalid class ({0})")]
     InvalidClass(u8),
-    #[error("invalid transaction id ({0:?})")]
-    InvalidTransactionId(Vec<u8>),
+    #[error("invalid error code ({0})")]
+    InvalidErrorCode(u16),
     #[error("invalid message integrity ({0:?})")]
     InvalidMessageIntegrity(Vec<u8>),
+    #[error("invalid method ({0})")]
+    InvalidMethod(u16),
+    #[error("invalid transaction id ({0:?})")]
+    InvalidTransactionId(Vec<u8>),
     #[error("unimplemented attribute ({0})")]
     UnimplementedAttribute(u16),
 }
@@ -70,7 +72,23 @@ impl<I> nom::ErrorConvert<ParseError<I>> for ((I, usize), nom::error::ErrorKind)
 #[derive(Copy, Clone, Debug, PartialEq, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Method {
-    Binding = 0b_0000_0000_0001,
+    // 0x000: (Reserved)
+    Binding = 0x_001,
+    // 0x002: (Reserved; was SharedSecret)
+    Allocate = 0x_003,
+    Refresh = 0x_004,
+    // 0x005: (Unassigned)
+    Send = 0x_006,
+    Data = 0x_007,
+    CreatePermission = 0x_008,
+    ChannelBind = 0x_009,
+    Connect = 0x_00A,
+    ConnectionBind = 0x_00B,
+    ConnectionAttempt = 0x_00C,
+    // 0x00D-0x07F: (Unassigned)
+    GoogPing = 0x_080,
+    // 0x081-0x0FF: (Unassigned)
+    // 0x100-0xFFF: (Reserved)
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, TryFromPrimitive)]
@@ -93,7 +111,7 @@ pub enum Class {
 // Figure 3: Format of STUN Message Type Field
 //
 // https://tools.ietf.org/html/rfc5389#section-6
-fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8]>> {
+fn message_type(input: &[u8]) -> IResult<&[u8], (Method, Class), ParseError<&[u8]>> {
     let (remainder, (m_11_7, c_1, m_6_4, c_0, m_3_0)): (&[u8], (u16, u8, u16, u8, u16)) =
         bits::<_, _, (_, _), _, _>(preceded(
             tag_bits(0b_00, 2_usize),
@@ -116,7 +134,7 @@ fn message_type(input: &[u8]) -> IResult<&[u8], (Class, Method), ParseError<&[u8
         .try_into()
         .map_err(|_| nom::Err::Error(Error::InvalidMethod(m).into()))?;
 
-    Ok((remainder, (class, method)))
+    Ok((remainder, (method, class)))
 }
 
 fn message_length(input: &[u8]) -> IResult<&[u8], u16, ParseError<&[u8]>> {
@@ -184,32 +202,32 @@ fn transaction_id(input: &[u8]) -> IResult<&[u8], TransactionId, ParseError<&[u8
 
 #[derive(Debug, PartialEq)]
 pub struct Header {
-    pub class: Class,
     pub method: Method,
+    pub class: Class,
     pub length: u16,
     pub transaction_id: TransactionId,
 }
 
 impl Header {
-    pub fn new(class: Class, method: Method, transaction_id: TransactionId) -> Self {
+    pub fn new(method: Method, class: Class, transaction_id: TransactionId) -> Self {
         Self {
-            class,
             method,
+            class,
             length: 0,
             transaction_id,
         }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let c = self.class as u16;
         let m = self.method as u16;
-
-        let c_0 = c & 0b_01;
-        let c_1 = (c & 0b_10) >> 1;
+        let c = self.class as u16;
 
         let m_3_0 = m & 0b_0000_0000_1111;
         let m_6_4 = (m & 0b_0000_0111_0000) >> 4;
         let m_11_7 = (m & 0b_1111_1000_0000) >> 7;
+
+        let c_0 = c & 0b_01;
+        let c_1 = (c & 0b_10) >> 1;
 
         let mt = (m_11_7 << 9) | (c_1 << 8) | (m_6_4 << 5) | (c_0 << 4) | m_3_0;
 
@@ -223,13 +241,13 @@ impl Header {
     }
 }
 
-type HeaderArgs = ((Class, Method), u16, TransactionId);
+type HeaderArgs = ((Method, Class), u16, TransactionId);
 
 impl Header {
     fn from_tuple(args: HeaderArgs) -> Self {
         Self {
-            class: (args.0).0,
-            method: (args.0).1,
+            method: (args.0).0,
+            class: (args.0).1,
             length: args.1,
             transaction_id: args.2,
         }
