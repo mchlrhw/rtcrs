@@ -9,6 +9,7 @@ mod xor_mapped_address;
 use std::net::IpAddr;
 
 use nom::{combinator::peek, number::complete::be_u16, IResult};
+use simplified_enum::simplified;
 
 use crate::{
     attribute::{
@@ -43,15 +44,22 @@ pub trait Tlv {
     }
 }
 
+#[simplified]
+#[impl_enum::with_methods {
+    fn typ(&self) -> u16 {}
+    fn length(&self) -> u16 {}
+    fn value(&self) -> Vec<u8> {}
+    pub fn to_bytes(&self) -> Vec<u8> {}
+}]
 #[derive(Debug, PartialEq)]
 pub enum Attribute {
-    ComprehensionOptional(ComprehensionOptional),
-    ErrorCode(ErrorCode),
-    Fingerprint(Fingerprint),
-    MessageIntegrity(MessageIntegrity),
-    Priority(Priority),
-    Username(Username),
-    XorMappedAddress(XorMappedAddress),
+    ComprehensionOptional,
+    ErrorCode,
+    Fingerprint,
+    MessageIntegrity,
+    Priority,
+    Username,
+    XorMappedAddress,
 }
 
 impl Attribute {
@@ -65,56 +73,6 @@ impl Attribute {
         let inner = XorMappedAddress::new(address, port);
 
         Self::XorMappedAddress(inner)
-    }
-}
-
-impl Tlv for Attribute {
-    fn typ(&self) -> u16 {
-        match self {
-            Self::ComprehensionOptional(inner) => inner.typ(),
-            Self::ErrorCode(inner) => inner.typ(),
-            Self::Fingerprint(inner) => inner.typ(),
-            Self::MessageIntegrity(inner) => inner.typ(),
-            Self::Priority(inner) => inner.typ(),
-            Self::Username(inner) => inner.typ(),
-            Self::XorMappedAddress(inner) => inner.typ(),
-        }
-    }
-
-    fn length(&self) -> u16 {
-        match self {
-            Self::ComprehensionOptional(inner) => inner.length(),
-            Self::ErrorCode(inner) => inner.length(),
-            Self::Fingerprint(inner) => inner.length(),
-            Self::MessageIntegrity(inner) => inner.length(),
-            Self::Priority(inner) => inner.length(),
-            Self::Username(inner) => inner.length(),
-            Self::XorMappedAddress(inner) => inner.length(),
-        }
-    }
-
-    fn value(&self) -> Vec<u8> {
-        match self {
-            Self::ComprehensionOptional(inner) => inner.value(),
-            Self::ErrorCode(inner) => inner.value(),
-            Self::Fingerprint(inner) => inner.value(),
-            Self::MessageIntegrity(inner) => inner.value(),
-            Self::Priority(inner) => inner.value(),
-            Self::Username(inner) => inner.value(),
-            Self::XorMappedAddress(inner) => inner.value(),
-        }
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            Self::ComprehensionOptional(inner) => inner.to_bytes(),
-            Self::ErrorCode(inner) => inner.to_bytes(),
-            Self::Fingerprint(inner) => inner.to_bytes(),
-            Self::MessageIntegrity(inner) => inner.to_bytes(),
-            Self::Priority(inner) => inner.to_bytes(),
-            Self::Username(inner) => inner.to_bytes(),
-            Self::XorMappedAddress(inner) => inner.to_bytes(),
-        }
     }
 }
 

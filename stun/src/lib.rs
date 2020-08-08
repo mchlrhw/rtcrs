@@ -21,7 +21,7 @@ use num_enum::TryFromPrimitive;
 use rand::Rng;
 
 pub use crate::attribute::Attribute;
-use crate::attribute::{attribute, fingerprint::Fingerprint, Tlv};
+use crate::attribute::{attribute, fingerprint::Fingerprint};
 
 const MAGIC_COOKIE: u32 = 0x_2112_A442;
 
