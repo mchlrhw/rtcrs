@@ -1,19 +1,34 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
+use fehler::{throw, throws};
 use nom::{
     bytes::complete::tag, multi::length_data, number::complete::be_u16, sequence::preceded, IResult,
 };
 
-use crate::attribute::{Attribute, Tlv};
+use super::{Attribute, Tlv};
+use crate::{Error, ParseError};
 
 const TYPE: u16 = 0x_0008;
+const MESSAGE_INTEGRITY_LEN: usize = 20;
+
+type MessageIntegrityBuf = [u8; MESSAGE_INTEGRITY_LEN];
 
 #[derive(Debug, PartialEq)]
-pub struct MessageIntegrity(Vec<u8>);
+pub struct MessageIntegrity(MessageIntegrityBuf);
 
-impl MessageIntegrity {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
+impl TryFrom<&[u8]> for MessageIntegrity {
+    type Error = Error;
+
+    #[throws]
+    fn try_from(bytes: &[u8]) -> Self {
+        if bytes.len() != MESSAGE_INTEGRITY_LEN {
+            throw!(Error::InvalidMessageIntegrity(bytes.to_vec()));
+        }
+
+        let mut buf = [0u8; MESSAGE_INTEGRITY_LEN];
+        buf.copy_from_slice(bytes);
+
+        Self(buf)
     }
 }
 
@@ -23,7 +38,7 @@ impl Tlv for MessageIntegrity {
     }
 
     fn length(&self) -> u16 {
-        self.0.len().try_into().unwrap()
+        MESSAGE_INTEGRITY_LEN as u16
     }
 
     fn value(&self) -> Vec<u8> {
@@ -31,15 +46,12 @@ impl Tlv for MessageIntegrity {
     }
 }
 
-pub(crate) fn message_integrity(
-    input: &[u8],
-) -> IResult<&[u8], Attribute, crate::ParseError<&[u8]>> {
+pub(crate) fn message_integrity(input: &[u8]) -> IResult<&[u8], Attribute, ParseError<&[u8]>> {
     let (remainder, value_field) = preceded(tag(TYPE.to_be_bytes()), length_data(be_u16))(input)?;
 
-    // TODO: assert that value_field.len() == 20
-    let value = value_field.to_vec();
-
-    let inner = MessageIntegrity(value);
+    let inner = value_field
+        .try_into()
+        .map_err(|err| nom::Err::Error(ParseError::from(err)))?;
     let attribute = Attribute::MessageIntegrity(inner);
 
     Ok((remainder, attribute))

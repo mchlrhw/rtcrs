@@ -91,8 +91,8 @@ fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
             };
 
             let reply = stun::Message::base(stun::Header::new(
-                stun::Class::Success,
                 stun::Method::Binding,
+                stun::Class::Success,
                 message.header.transaction_id,
             ))
             .with_attributes(vec![
