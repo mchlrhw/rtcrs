@@ -89,9 +89,8 @@ impl Tlv for ErrorCode {
         value_field.extend_from_slice(self.reason_phrase.as_bytes());
 
         let pad_len = (4 - (value_field.len() % 4)) % 4;
-        for _ in 0..pad_len {
-            value_field.push(0x_00);
-        }
+        let new_len = value_field.len() + pad_len;
+        value_field.resize(new_len, 0x_00);
 
         value_field
     }
