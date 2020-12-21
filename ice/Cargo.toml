@@ -10,7 +10,7 @@ edition = "2018"
 fehler = "1.0"
 log = "0.4"
 pnet = "0.26"
-rand = "0.7"
+rand = "0.8"
 sdp = { path = "../sdp" }
 stun = { path = "../stun" }
 thiserror = "1.0"
