@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 crc = "1.8"
 fehler = "1.0"
-impl-enum = "0.1"
+impl-enum = "0.2"
 nom = "5"
 num_enum = "0.5"
 rand = "0.8"
