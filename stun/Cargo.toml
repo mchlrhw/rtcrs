@@ -10,7 +10,7 @@ fehler = "1.0"
 impl-enum = "0.2"
 nom = "5"
 num_enum = "0.5"
-rand = "0.7"
+rand = "0.8"
 rust-crypto = "0.2"
 simplified-enum = { path = "../simplified-enum" }
 thiserror = "1.0"

@@ -73,20 +73,20 @@ impl<I> nom::ErrorConvert<ParseError<I>> for ((I, usize), nom::error::ErrorKind)
 #[repr(u16)]
 pub enum Method {
     // 0x000: (Reserved)
-    Binding = 0x_001,
+    Binding = 0x_0001,
     // 0x002: (Reserved; was SharedSecret)
-    Allocate = 0x_003,
-    Refresh = 0x_004,
+    Allocate = 0x_0003,
+    Refresh = 0x_0004,
     // 0x005: (Unassigned)
-    Send = 0x_006,
-    Data = 0x_007,
-    CreatePermission = 0x_008,
-    ChannelBind = 0x_009,
-    Connect = 0x_00A,
-    ConnectionBind = 0x_00B,
-    ConnectionAttempt = 0x_00C,
+    Send = 0x_0006,
+    Data = 0x_0007,
+    CreatePermission = 0x_0008,
+    ChannelBind = 0x_0009,
+    Connect = 0x_000A,
+    ConnectionBind = 0x_000B,
+    ConnectionAttempt = 0x_000C,
     // 0x00D-0x07F: (Unassigned)
-    GoogPing = 0x_080,
+    GoogPing = 0x_0080,
     // 0x081-0x0FF: (Unassigned)
     // 0x100-0xFFF: (Reserved)
 }
