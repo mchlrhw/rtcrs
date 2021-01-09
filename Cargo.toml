@@ -3,7 +3,6 @@
 members = [
     "ice",
     "sdp",
-    "simplified-enum",
     "stun",
     "webrtc",
 ]
