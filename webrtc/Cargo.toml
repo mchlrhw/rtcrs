@@ -9,6 +9,6 @@ base64 = "0.13.0"
 env_logger = "0.8.1"
 ice = { path = "../ice" }
 log = "0.4.7"
-rand = "0.7.0"
+rand = "0.8.0"
 sdp = { path = "../sdp" }
 pnet = "0.26.0"
