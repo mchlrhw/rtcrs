@@ -3,6 +3,7 @@ mod error_code;
 pub(crate) mod fingerprint;
 pub(crate) mod message_integrity;
 mod priority;
+mod use_candidate;
 mod username;
 mod xor_mapped_address;
 
@@ -18,6 +19,7 @@ use crate::{
         fingerprint::{fingerprint, Fingerprint},
         message_integrity::{message_integrity, MessageIntegrity},
         priority::{priority, Priority},
+        use_candidate::{use_candidate, UseCandidate},
         username::{username, Username},
         xor_mapped_address::{xor_mapped_address, XorMappedAddress},
     },
@@ -59,6 +61,7 @@ pub enum Attribute {
     MessageIntegrity,
     Priority,
     Username,
+    UseCandidate,
     XorMappedAddress,
 }
 
@@ -131,7 +134,7 @@ pub(crate) fn attribute(input: &[u8]) -> IResult<&[u8], Attribute, crate::ParseE
         // 0x0022: RESERVATION-TOKEN
         // 0x0023: (Reserved)
         0x_0024 => priority,
-        // 0x0025: USE-CANDIDATE
+        0x_0025 => use_candidate,
         // 0x0026: PADDING
         // 0x0027: RESPONSE-PORT
         // 0x0028-0x0029: (Reserved)
