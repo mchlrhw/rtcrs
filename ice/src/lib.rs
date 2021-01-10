@@ -1,13 +1,16 @@
 use std::{
     default::Default,
-    net::{IpAddr, SocketAddr, UdpSocket},
-    thread::{self, JoinHandle},
+    net::{IpAddr, SocketAddr},
 };
 
 use fehler::throws;
 use log::{debug, trace, warn};
 use pnet::datalink;
 use rand::{self, seq::SliceRandom};
+use tokio::{
+    net::UdpSocket,
+    task::{self, JoinHandle},
+};
 
 const MTU: usize = 1500;
 const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
@@ -43,20 +46,21 @@ fn get_local_addrs() -> Vec<IpAddr> {
 }
 
 #[throws]
-fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
+async fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
     debug!("Starting UDP listener on {}", address);
 
-    let socket =
-        UdpSocket::bind(format!("{}:0", address)).map_err(|source| Error::BindError { source })?;
+    let socket = UdpSocket::bind(format!("{}:0", address))
+        .await
+        .map_err(|source| Error::BindError { source })?;
     let local_addr = socket.local_addr().unwrap();
     debug!("Socket bound to {}", local_addr);
 
     let key = key.to_string();
-    let handle = thread::spawn(move || {
+    let handle = task::spawn(async move {
         let local_addr = socket.local_addr().unwrap();
         let mut buf = [0; MTU];
         loop {
-            let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).unwrap();
+            let (bytes_rcvd, src_addr) = socket.recv_from(&mut buf).await.unwrap();
             trace!(
                 "Received {} bytes from {} on {}: {:02X?}",
                 bytes_rcvd,
@@ -108,7 +112,7 @@ fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
 
             trace!("Sending reply: {:02X?}", reply.to_vec());
 
-            socket.send_to(&reply, src_addr).unwrap();
+            socket.send_to(&reply, src_addr).await.unwrap();
         }
     });
 
@@ -126,7 +130,7 @@ pub struct Agent {
     password: String,
     local_addrs: Vec<IpAddr>,
     candidates: Vec<Candidate>,
-    thread_handles: Vec<JoinHandle<()>>,
+    task_handles: Vec<JoinHandle<()>>,
 }
 
 impl Default for Agent {
@@ -136,7 +140,7 @@ impl Default for Agent {
             password: rand_ice_string(22),
             local_addrs: get_local_addrs(),
             candidates: vec![],
-            thread_handles: vec![],
+            task_handles: vec![],
         }
     }
 }
@@ -154,12 +158,12 @@ impl Agent {
         self.password.clone()
     }
 
-    pub fn gather(&mut self) {
+    pub async fn gather(&mut self) {
         for local_addr in &self.local_addrs {
-            if let Ok((address, handle)) = udp_listener(local_addr, &self.password) {
+            if let Ok((address, handle)) = udp_listener(local_addr, &self.password).await {
                 let candidate = Candidate { address };
                 self.candidates.push(candidate);
-                self.thread_handles.push(handle);
+                self.task_handles.push(handle);
 
                 break; // we only want one for now
             } else {
@@ -176,9 +180,9 @@ impl Agent {
             .collect()
     }
 
-    pub fn wait_till_completion(self) {
-        for handle in self.thread_handles {
-            handle.join().unwrap();
+    pub async fn wait_till_completion(self) {
+        for handle in self.task_handles {
+            handle.await.unwrap();
         }
     }
 }

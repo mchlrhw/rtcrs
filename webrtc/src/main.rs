@@ -1,4 +1,5 @@
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     env_logger::init();
 
     let mut ice_agent = ice::Agent::new();
@@ -6,7 +7,7 @@ fn main() {
     let ice_ufrag = ice_agent.username();
     let ice_pwd = ice_agent.password();
 
-    ice_agent.gather();
+    ice_agent.gather().await;
     let mut candidates = ice_agent.candidate_attributes();
 
     let video_description = sdp::MediaDescription::base(sdp::Media {
@@ -78,5 +79,5 @@ fn main() {
     let answer = format!(r#"{{"type": "answer", "sdp": "{}"}}"#, sdp_string);
     println!("{}", base64::encode(&answer));
 
-    ice_agent.wait_till_completion();
+    ice_agent.wait_till_completion().await;
 }
