@@ -79,5 +79,5 @@ async fn main() {
     let answer = format!(r#"{{"type": "answer", "sdp": "{}"}}"#, sdp_string);
     println!("{}", base64::encode(&answer));
 
-    ice_agent.wait_till_completion();
+    ice_agent.wait_till_completion().await;
 }
