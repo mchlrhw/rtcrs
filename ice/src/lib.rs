@@ -43,7 +43,7 @@ fn get_local_addrs() -> Vec<IpAddr> {
 }
 
 #[throws]
-fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
+async fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
     debug!("Starting UDP listener on {}", address);
 
     let socket =
@@ -154,9 +154,9 @@ impl Agent {
         self.password.clone()
     }
 
-    pub fn gather(&mut self) {
+    pub async fn gather(&mut self) {
         for local_addr in &self.local_addrs {
-            if let Ok((address, handle)) = udp_listener(local_addr, &self.password) {
+            if let Ok((address, handle)) = udp_listener(local_addr, &self.password).await {
                 let candidate = Candidate { address };
                 self.candidates.push(candidate);
                 self.thread_handles.push(handle);

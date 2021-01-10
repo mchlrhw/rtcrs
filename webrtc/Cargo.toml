@@ -9,6 +9,7 @@ base64 = "0.13.0"
 env_logger = "0.8.1"
 ice = { path = "../ice" }
 log = "0.4.7"
+pnet = "0.27.2"
 rand = "0.8.0"
 sdp = { path = "../sdp" }
-pnet = "0.27.2"
+tokio = { version = "1.0", features = ["macros", "rt"] }
