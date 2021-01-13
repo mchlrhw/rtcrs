@@ -5,7 +5,10 @@ authors = ["mchlrhw <4028654+mchlrhw@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+base64 = "0.13"
 fehler = "1.0"
 nom = "6.0"
 nom_locate = "3.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 thiserror = "1.0"

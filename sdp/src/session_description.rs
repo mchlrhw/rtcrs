@@ -7,6 +7,7 @@ use nom::{
     sequence::tuple,
     IResult,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     attribute::{attribute, Attribute},
@@ -92,6 +93,22 @@ impl SessionDescription {
     pub fn and_media_description(mut self, media_description: MediaDescription) -> Self {
         self.media_descriptions.push(media_description);
         self
+    }
+}
+
+impl SessionDescription {
+    pub fn candidates(&self) -> Vec<Attribute> {
+        let mut candidates = vec![];
+
+        for media_description in &self.media_descriptions {
+            for attribute in &media_description.attributes {
+                if attribute.is_ice_candidate() {
+                    candidates.push(attribute.clone());
+                }
+            }
+        }
+
+        candidates
     }
 }
 
@@ -253,6 +270,31 @@ impl FromStr for SessionDescription {
             all_consuming(session_description)(input).or(Err(Error::InvalidSessionDescription))?;
 
         session_description
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SdpType {
+    Offer,
+    Answer,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SessionDescriptionWrapper {
+    #[serde(rename = "type")]
+    ty: SdpType,
+    sdp: String,
+}
+
+impl SessionDescription {
+    #[throws]
+    pub fn from_base64(encoded: &str) -> Self {
+        let bytes = base64::decode(encoded)?;
+        let wrapper_string = String::from_utf8(bytes)?;
+        let wrapper: SessionDescriptionWrapper = serde_json::from_str(&wrapper_string)?;
+
+        Self::from_str(&wrapper.sdp)?
     }
 }
 

@@ -31,6 +31,12 @@ type Span<'a> = LocatedSpan<&'a str>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("invalid base64: {0}")]
+    InvalidBase64(#[from] base64::DecodeError),
+    #[error("invalid json: {0}")]
+    InvalidJson(#[from] serde_json::Error),
     #[error("invalid session description")]
     InvalidSessionDescription,
+    #[error("bytes are not valid UTF-8: {0}")]
+    InvalidString(#[from] std::string::FromUtf8Error),
 }

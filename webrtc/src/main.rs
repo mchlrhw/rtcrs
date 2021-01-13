@@ -1,8 +1,33 @@
+use std::io::BufRead;
+
+use anyhow::Error;
+use fehler::throws;
+use log::{debug, error};
+
+#[throws]
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     env_logger::init();
 
     let mut ice_agent = ice::Agent::new();
+
+    let mut offer = String::new();
+    for line in std::io::stdin().lock().lines() {
+        let line = line?;
+        if line.is_empty() {
+            break;
+        }
+        offer.push_str(&line);
+    }
+
+    let remote_description = sdp::SessionDescription::from_base64(&offer)?;
+    debug!("{}", remote_description);
+
+    for candidate_attribute in remote_description.candidates() {
+        if let Err(err) = ice_agent.add_remote_candidate(candidate_attribute) {
+            error!("{}", err);
+        }
+    }
 
     let ice_ufrag = ice_agent.username();
     let ice_pwd = ice_agent.password();
