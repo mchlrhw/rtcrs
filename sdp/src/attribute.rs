@@ -11,7 +11,7 @@ use nom::{
 
 use crate::Span;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Attribute {
     Property(String),
     Value(String, String),
@@ -24,6 +24,13 @@ impl Attribute {
 
     pub fn value(k: &str, v: &str) -> Self {
         Self::Value(k.to_string(), v.to_owned())
+    }
+
+    pub fn is_ice_candidate(&self) -> bool {
+        match self {
+            Self::Value(k, _v) => k == "candidate",
+            Self::Property(_) => false,
+        }
     }
 }
 
