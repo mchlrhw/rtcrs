@@ -20,10 +20,7 @@ use nom::{
 use nom_locate::LocatedSpan;
 use pnet::datalink;
 use rand::{self, seq::SliceRandom};
-use tokio::{
-    net::UdpSocket,
-    task::{self, JoinHandle},
-};
+use tokio::{net::UdpSocket, task};
 
 const MTU: usize = 1500;
 const ICE_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+/";
@@ -67,7 +64,7 @@ fn get_local_addrs() -> Vec<IpAddr> {
 }
 
 #[throws]
-async fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()>) {
+async fn udp_listener(address: &IpAddr, key: &str) -> SocketAddr {
     debug!("Starting UDP listener on {}", address);
 
     let socket = UdpSocket::bind(format!("{}:0", address))
@@ -77,7 +74,7 @@ async fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()
     debug!("Socket bound to {}", local_addr);
 
     let key = key.to_string();
-    let handle = task::spawn(async move {
+    task::spawn(async move {
         let local_addr = socket.local_addr().unwrap();
         let mut buf = [0; MTU];
         loop {
@@ -137,7 +134,7 @@ async fn udp_listener(address: &IpAddr, key: &str) -> (SocketAddr, JoinHandle<()
         }
     });
 
-    (local_addr, handle)
+    local_addr
 }
 
 struct Foundation(String);
@@ -399,7 +396,6 @@ pub struct Agent {
     local_addrs: Vec<IpAddr>,
     local_candidates: Vec<LocalCandidate>,
     remote_candidates: Vec<RemoteCandidate>,
-    task_handles: Vec<JoinHandle<()>>,
 }
 
 impl Default for Agent {
@@ -410,7 +406,6 @@ impl Default for Agent {
             local_addrs: get_local_addrs(),
             local_candidates: vec![],
             remote_candidates: vec![],
-            task_handles: vec![],
         }
     }
 }
@@ -436,17 +431,16 @@ impl Agent {
 
     pub async fn gather(&mut self) {
         for local_addr in &self.local_addrs {
-            if let Ok((address, handle)) = udp_listener(local_addr, &self.password).await {
+            if let Ok(address) = udp_listener(local_addr, &self.password).await {
                 let candidate = LocalCandidate {
                     ty: CandidateType::Host,
                     address,
                 };
                 self.local_candidates.push(candidate);
-                self.task_handles.push(handle);
 
                 break; // we only want one for now
             } else {
-                warn!("Unable to gather local candidate on {}", local_addr);
+                warn!("Unable to gather host candidate on {}", local_addr);
             }
         }
     }
@@ -457,12 +451,6 @@ impl Agent {
             .enumerate()
             .map(|(f, c)| encode_as_sdp(f, c.address))
             .collect()
-    }
-
-    pub async fn wait_till_completion(self) {
-        for handle in self.task_handles {
-            handle.await.unwrap();
-        }
     }
 }
 

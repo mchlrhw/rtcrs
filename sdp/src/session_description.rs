@@ -94,6 +94,14 @@ impl SessionDescription {
         self.media_descriptions.push(media_description);
         self
     }
+
+    pub fn add_candidate(&mut self, candidate: Attribute) {
+        for media_description in &mut self.media_descriptions.iter_mut() {
+            let mut attributes = vec![candidate.clone()];
+            attributes.extend_from_slice(&media_description.attributes);
+            media_description.attributes = attributes;
+        }
+    }
 }
 
 impl SessionDescription {
@@ -281,10 +289,21 @@ enum SdpType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SessionDescriptionWrapper {
+pub struct SessionDescriptionWrapper {
     #[serde(rename = "type")]
     ty: SdpType,
     sdp: String,
+}
+
+impl SessionDescriptionWrapper {
+    pub fn new_answer(sdp: &str) -> Self {
+        let sdp = sdp.to_string();
+
+        Self {
+            ty: SdpType::Answer,
+            sdp,
+        }
+    }
 }
 
 impl SessionDescription {

@@ -14,4 +14,5 @@ log = "0.4.7"
 pnet = "0.27.2"
 rand = "0.8.0"
 sdp = { path = "../sdp" }
-tokio = { version = "1.0", features = ["macros", "rt"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["macros", "rt", "time"] }
