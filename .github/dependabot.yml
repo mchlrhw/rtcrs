@@ -1,0 +1,14 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: nom
+    versions:
+    - ">= 6.a, < 7"
+  - dependency-name: nom_locate
+    versions:
+    - ">= 3.a, < 4"
