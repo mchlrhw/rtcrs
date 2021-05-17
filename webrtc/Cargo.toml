@@ -11,7 +11,7 @@ env_logger = "0.8.1"
 fehler = "1.0.0"
 ice = { path = "../ice" }
 log = "0.4.7"
-pnet = "0.27.2"
+pnet = "0.28.0"
 rand = "0.8.0"
 sdp = { path = "../sdp" }
 tokio = { version = "1.0", features = ["macros", "rt"] }
