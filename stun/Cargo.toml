@@ -5,7 +5,7 @@ authors = ["mchlrhw <4028654+mchlrhw@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-crc = "1.8"
+crc = "2.0"
 fehler = "1.0"
 impl-enum = "0.2"
 nom = "6.0"
